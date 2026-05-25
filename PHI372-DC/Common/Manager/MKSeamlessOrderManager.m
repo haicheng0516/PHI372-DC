@@ -457,9 +457,13 @@
 }
 
 - (void)checkContactsForce:(CNAuthorizationStatus)status {
+    // 对齐 259 SCSeamlessOrderManager.m L779-838:
+    //  - 首次拒绝 (NotDetermined → 用户点不允许) → notifyFailure 静默失败 (不 cancel/pop)
+    //  - 已 Denied/Restricted → 弹自定义二次弹窗
+    //  - iOS18 Limited → notifyFailure (Force 模式需要全部访问)
     if (@available(iOS 18.0, *)) {
         if (status == CNAuthorizationStatusLimited) {
-            [self cancel]; return;
+            [self notifyFail:@"Full contacts access required"]; return;
         }
     }
     if (status == CNAuthorizationStatusAuthorized) {
@@ -471,18 +475,18 @@
                 CNAuthorizationStatus cur = [CNContactStore authorizationStatusForEntityType:CNEntityTypeContacts];
                 if (@available(iOS 18.0, *)) {
                     if (cur == CNAuthorizationStatusLimited) {
-                        self.isWaitingForContactsPermission = YES;
-                        [self showContactsPermissionAlert]; return;
+                        [self notifyFail:@"Full contacts access required"]; return;
                     }
                 }
                 if (granted && cur == CNAuthorizationStatusAuthorized) {
                     [self startContactsUpload];
                 } else {
-                    [self cancel];
+                    [self notifyFail:@"Contacts permission denied"];
                 }
             });
         }];
     } else {
+        // 已 Denied/Restricted → 自定义二次弹窗
         self.isWaitingForContactsPermission = YES;
         [self showContactsPermissionAlert];
     }

@@ -20,8 +20,6 @@
 #import "MKAppConfigModel.h"
 #import "MKToastView.h"
 #import "MKBottomSheetView.h"
-#import "MKProductSuccessViewController.h"
-#import "MKDataCaptureViewController.h"
 #import "MKWebViewViewController.h"
 #import "MKKYCBankCardEditViewController.h"
 #import "MKNetworkManager.h"
@@ -44,8 +42,8 @@
 
 @property (nonatomic, strong) NSArray<MKPayAccountModel *> *cards;
 
-/// 数据抓取蒙层 (通讯录上传期间 modal overlay)
-@property (nonatomic, strong, nullable) MKDataCaptureViewController *dataCaptureVC;
+/// 数据抓取 BottomSheet (通讯录上传期间显示, 进度动态更新)
+@property (nonatomic, strong, nullable) MKBottomSheetView *dataCaptureSheet;
 @end
 
 @implementation MKProductApplyViewController
@@ -347,47 +345,40 @@
 
 - (void)seamlessOrderManager:(id)manager didUpdateContactUploadProgress:(NSInteger)progress {
     [SVProgressHUD dismiss];
-    if (!self.dataCaptureVC) {
-        self.dataCaptureVC = [[MKDataCaptureViewController alloc] init];
-        self.dataCaptureVC.progress = progress;
-        [self presentViewController:self.dataCaptureVC animated:YES completion:nil];
+    if (!self.dataCaptureSheet) {
+        self.dataCaptureSheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypeDataCapture config:nil];
+        [self.dataCaptureSheet show];
+        // show 之后再 set, 此时 layout 完成 trackBar 宽度有效
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.dataCaptureSheet setDataCaptureProgress:progress animated:NO];
+        });
     } else {
-        [self.dataCaptureVC setProgress:progress animated:YES];
+        [self.dataCaptureSheet setDataCaptureProgress:progress animated:YES];
     }
 }
 
 - (void)seamlessOrderManager:(id)manager didCompleteWithOrderId:(NSString *)orderId {
     [SVProgressHUD dismiss];
-    void (^showSuccess)(void) = ^{
-        MKProductSuccessViewController *succ = [[MKProductSuccessViewController alloc] init];
-        [self presentViewController:succ animated:YES completion:nil];
+    [self dismissDataCaptureSheet];
+    __weak typeof(self) wself = self;
+    MKBottomSheetView *succ = [MKBottomSheetView sheetWithType:MKBottomSheetTypeApplySuccess config:nil];
+    // Confirm: 返回上一页 (对齐 259 popViewControllerAnimated 行为)
+    succ.onConfirmTapped = ^{
+        [wself.navigationController popViewControllerAnimated:YES];
     };
-    if (self.dataCaptureVC) {
-        [self.dataCaptureVC dismissViewControllerAnimated:YES completion:^{
-            self.dataCaptureVC = nil;
-            showSuccess();
-        }];
-    } else {
-        showSuccess();
-    }
+    [succ show];
 }
 
 - (void)seamlessOrderManager:(id)manager didFailWithError:(NSError *)error {
     [SVProgressHUD dismiss];
-    if (self.dataCaptureVC) {
-        [self.dataCaptureVC dismissViewControllerAnimated:YES completion:nil];
-        self.dataCaptureVC = nil;
-    }
+    [self dismissDataCaptureSheet];
 }
 - (void)seamlessOrderManager:(id)manager shouldShowMessage:(NSString *)message {
     // 与 259 保持一致: 不做处理
 }
 - (void)seamlessOrderManagerDidCancel:(id)manager {
     [SVProgressHUD dismiss];
-    if (self.dataCaptureVC) {
-        [self.dataCaptureVC dismissViewControllerAnimated:YES completion:nil];
-        self.dataCaptureVC = nil;
-    }
+    [self dismissDataCaptureSheet];
     [self.navigationController popViewControllerAnimated:YES];
 }
 - (void)seamlessOrderManagerDidCancelLocationPermission:(id)manager {
@@ -395,9 +386,13 @@
 }
 - (void)seamlessOrderManagerDidCancelContactsPermission:(id)manager {
     [SVProgressHUD dismiss];
-    if (self.dataCaptureVC) {
-        [self.dataCaptureVC dismissViewControllerAnimated:YES completion:nil];
-        self.dataCaptureVC = nil;
+    [self dismissDataCaptureSheet];
+}
+
+- (void)dismissDataCaptureSheet {
+    if (self.dataCaptureSheet) {
+        [self.dataCaptureSheet dismiss];
+        self.dataCaptureSheet = nil;
     }
 }
 

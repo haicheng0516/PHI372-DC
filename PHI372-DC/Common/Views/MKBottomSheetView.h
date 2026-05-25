@@ -40,6 +40,9 @@ typedef NS_ENUM(NSInteger, MKBottomSheetType) {
     MKBottomSheetTypePermissionCamera,              // 3:1577 二次弹窗-相机
     MKBottomSheetTypePermissionLocation,            // 3:1587 二次弹窗-定位
     MKBottomSheetTypePermissionContacts,            // 3:1596 二次弹窗-通讯录
+    // 下单流程
+    MKBottomSheetTypeDataCapture,                   // opiuJ 数据抓取 (通讯录上传进度)
+    MKBottomSheetTypeApplySuccess,                  // Q5IzQ 产品申请-申请成功-老客
 };
 
 @interface MKBottomSheetView : UIView
@@ -62,6 +65,9 @@ typedef NS_ENUM(NSInteger, MKBottomSheetType) {
 @property (nonatomic, copy, nullable) void (^onConfirmTapped)(void);
 @property (nonatomic, copy, nullable) void (^onCancelTapped)(void);
 @property (nonatomic, copy, nullable) void (^onSelected)(NSInteger index, id _Nullable value);
+
+/// DataCapture 进度更新 (0~100)
+- (void)setDataCaptureProgress:(NSInteger)progress animated:(BOOL)animated;
 
 @end
 

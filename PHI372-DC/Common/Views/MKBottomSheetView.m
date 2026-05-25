@@ -24,6 +24,10 @@
 // CommonPicker / RepaymentPlan 共用
 @property (nonatomic, copy, nullable) NSArray<NSString *> *pickerItems;
 @property (nonatomic, assign) NSInteger pickerSelectedRow;
+// DataCapture: 进度条引用 (供 setDataCaptureProgress: 动态更新)
+@property (nonatomic, strong, nullable) UIView *dcTrackBar;
+@property (nonatomic, strong, nullable) UIView *dcFillBar;
+@property (nonatomic, strong, nullable) UILabel *dcPercentLabel;
 // 私有按钮构建方法
 typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
     MKSheetCancelFillGray  = 0,   // #E9E9E4 (多数 sheet 默认)
@@ -53,8 +57,11 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
         _config = config;
         _cardWidth = kScreenWidth - S(44);  // Pencil: 左右各 22pt 边距, 卡片宽331@375
         _contentMaxY = S(8);                 // 顶部留 8 (无 drag handle)
-        // 强更弹窗禁止 dim 关闭 (用户必须点 Upgrade 按钮)
-        _dismissibleByDim = (type != MKBottomSheetTypeForceUpdate);
+        // 强更 / 数据抓取 / 申请成功: 禁止 dim 关闭 (必须点对应按钮 或 API 关闭)
+        BOOL noDim = (type == MKBottomSheetTypeForceUpdate
+                       || type == MKBottomSheetTypeDataCapture
+                       || type == MKBottomSheetTypeApplySuccess);
+        _dismissibleByDim = !noDim;
         [self setupDim];
         [self setupContainerInitial];
         [self addDragHandle];
@@ -172,6 +179,15 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
             [self buildPermission:@"location.fill"  body:@"We use your location to enhance fraud prevention. Tap Confirm and allow access in Settings."]; break;
         case MKBottomSheetTypePermissionContacts:
             [self buildPermission:@"person.2.fill" body:@"We need contacts access for emergency contact verification. Tap Confirm and allow access in Settings."]; break;
+
+        case MKBottomSheetTypeDataCapture:
+            [self buildDataCapture]; break;
+        case MKBottomSheetTypeApplySuccess:
+            // Pencil Q5IzQ: title "Success!" body "Your application is under review..."
+            [self buildResult:YES
+                        title:@"Success!"
+                         body:@"Your application is under review. Once approved, the money will be credited to your bank account."
+                      confirm:@"Confirm"]; break;
 
         case MKBottomSheetTypeAccountDeleteSuccess:
             // Pencil: "Account canceled successfully" body, title "Success!"
@@ -496,6 +512,119 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
     // Pencil Permission: Cancel(灰 90pt 左) + Confirm(170pt 右, 主色)
     y = [self addDoubleButtonsCancelLeftConfirmRightAtY:y confirmTitle:@"Confirm" cancelTitle:@"Cancel" cancelFill:MKSheetCancelFillGray];
     self.contentMaxY = y;
+}
+
+#pragma mark - Data Capture (Pencil opiuJ)
+
+- (void)buildDataCapture {
+    // Pencil opiuJ: 卡片 331×315 (xd7UO). 内部坐标 = pencil_y - 441
+    CGFloat W = self.cardWidth;
+    CGFloat y = S(19);   // Pencil title y=460 → 19
+
+    // Title "Under review" PingFang SC 20pt #000 center
+    UILabel *title = [UILabel new];
+    title.text = @"Under review";
+    title.font = [UIFont systemFontOfSize:S(20) weight:UIFontWeightRegular];
+    title.textColor = MKHexColor(0x000000);
+    title.textAlignment = NSTextAlignmentCenter;
+    title.frame = CGRectMake(0, y, W, S(28));
+    [self.containerView addSubview:title];
+    y = CGRectGetMaxY(title.frame) + S(13);   // Pencil body y=506 → 65 → gap=18
+
+    // Body 14pt #666 居中
+    UILabel *body = [UILabel new];
+    body.text = @"Your credit score is being updated, please don't exit. It'll only take a few seconds.";
+    body.font = [UIFont systemFontOfSize:S(14) weight:UIFontWeightRegular];
+    body.textColor = MKHexColor(0x666666);
+    body.textAlignment = NSTextAlignmentCenter;
+    body.numberOfLines = 0;
+    CGSize fit = [body sizeThatFits:CGSizeMake(W - S(48), CGFLOAT_MAX)];
+    body.frame = CGRectMake(S(24), y, W - S(48), ceil(fit.height));
+    [self.containerView addSubview:body];
+    y = CGRectGetMaxY(body.frame) + S(15);   // Pencil progress container y=569 → 128
+
+    // Progress container 291×90 r14 #e9e9e4
+    UIView *prog = [[UIView alloc] initWithFrame:CGRectMake(S(20), y, W - S(40), S(90))];
+    prog.backgroundColor = MKHexColor(0xE9E9E4);
+    prog.layer.cornerRadius = S(14);
+    [self.containerView addSubview:prog];
+
+    // 百分比 label "0%" Poppins 14 #171718, Pencil at (239, 574) → container (219, 5)
+    self.dcPercentLabel = [UILabel new];
+    self.dcPercentLabel.text = @"0%";
+    self.dcPercentLabel.font = [UIFont systemFontOfSize:S(14) weight:UIFontWeightRegular];
+    self.dcPercentLabel.textColor = MKHexColor(0x171718);
+    self.dcPercentLabel.textAlignment = NSTextAlignmentCenter;
+    self.dcPercentLabel.frame = CGRectMake(prog.bounds.size.width - S(60) - S(10), S(5), S(60), S(21));
+    [prog addSubview:self.dcPercentLabel];
+
+    // Track bar 267×7 r3.5 #c8c8be, Pencil (53, 601) → container (11, 32)
+    self.dcTrackBar = [[UIView alloc] initWithFrame:CGRectMake(S(11), S(32), prog.bounds.size.width - S(22), S(7))];
+    self.dcTrackBar.backgroundColor = MKHexColor(0xC8C8BE);
+    self.dcTrackBar.layer.cornerRadius = S(3.5);
+    [prog addSubview:self.dcTrackBar];
+
+    // Fill bar 0→track.w, fill #385330 (主色), 初始 0
+    self.dcFillBar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, S(7))];
+    self.dcFillBar.backgroundColor = kColorPrimary;
+    self.dcFillBar.layer.cornerRadius = S(3.5);
+    [self.dcTrackBar addSubview:self.dcFillBar];
+
+    // checkpoint divider ticks 17×4 #eae9e9 at (108, 635) and (226, 635), 居中 progress bar 内
+    // Pencil: divider y=635, 即 progress bar 上面 y=601-632 之间, 中线 y=601+3.5=604.5 → divider y=635 似乎在 bar 下方
+    // 这是 step 标签上方的小分隔点, 我们简化: 不渲染 (Pencil 设计微调装饰), 重点是 bar + 步骤标签
+
+    // Step labels Poppins 14 #565656: Apply / Reviewed / Received, Pencil y=627 → container y=58
+    NSArray *steps = @[ @"Apply", @"Reviewed", @"Received" ];
+    NSArray *xs = @[ @(S(11)), @(S(99)), @(prog.bounds.size.width - S(11) - S(80)) ];
+    NSArray *widths = @[ @(S(60)), @(S(80)), @(S(80)) ];
+    for (NSInteger i = 0; i < 3; i++) {
+        UILabel *step = [UILabel new];
+        step.text = steps[i];
+        step.font = [UIFont systemFontOfSize:S(12) weight:UIFontWeightRegular];
+        step.textColor = MKHexColor(0x565656);
+        step.textAlignment = i == 0 ? NSTextAlignmentLeft : (i == 1 ? NSTextAlignmentCenter : NSTextAlignmentRight);
+        step.frame = CGRectMake([xs[i] floatValue], S(58), [widths[i] floatValue], S(21));
+        [prog addSubview:step];
+    }
+
+    y = CGRectGetMaxY(prog.frame) + S(28);
+
+    // 底部说明 14pt #666 center
+    UILabel *note = [UILabel new];
+    note.text = @"You're only one step away from receiving your funds, please keep this page open.";
+    note.font = [UIFont systemFontOfSize:S(14) weight:UIFontWeightRegular];
+    note.textColor = MKHexColor(0x666666);
+    note.textAlignment = NSTextAlignmentCenter;
+    note.numberOfLines = 0;
+    CGSize nf = [note sizeThatFits:CGSizeMake(W - S(48), CGFLOAT_MAX)];
+    note.frame = CGRectMake(S(24), y, W - S(48), ceil(nf.height));
+    [self.containerView addSubview:note];
+    y = CGRectGetMaxY(note.frame);
+
+    // dim 不可关闭 (任务进行中)
+    self.dismissibleByDim = NO;
+
+    self.contentMaxY = y;
+}
+
+- (void)setDataCaptureProgress:(NSInteger)progress animated:(BOOL)animated {
+    if (!self.dcTrackBar || !self.dcFillBar || !self.dcPercentLabel) return;
+    progress = MAX(0, MIN(100, progress));
+    CGFloat trackW = self.dcTrackBar.bounds.size.width;
+    if (trackW <= 0) trackW = self.dcTrackBar.frame.size.width;
+    CGFloat fillW = trackW * (progress / 100.0);
+    self.dcPercentLabel.text = [NSString stringWithFormat:@"%ld%%", (long)progress];
+    void (^block)(void) = ^{
+        CGRect f = self.dcFillBar.frame;
+        f.size.width = fillW;
+        self.dcFillBar.frame = f;
+    };
+    if (animated) {
+        [UIView animateWithDuration:0.3 animations:block];
+    } else {
+        block();
+    }
 }
 
 #pragma mark - KYC Fail
