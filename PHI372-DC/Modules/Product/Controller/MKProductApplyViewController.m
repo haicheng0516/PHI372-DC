@@ -11,6 +11,7 @@
 
 #import "MKProductApplyViewController.h"
 #import "MKConstants.h"
+#import "NSString+MKAmount.h"
 #import "MKLoanInfoCell.h"
 #import "MKLoanProductModel.h"
 #import "MKProductTermModel.h"
@@ -270,21 +271,29 @@
 }
 
 - (void)showRepaymentPlanSheet {
+    // ISO 日期 "2026-05-31" → Pencil 风格 "May 31, 2026"
+    static NSDateFormatter *isoFmt;
+    static NSDateFormatter *prettyFmt;
+    static dispatch_once_t t;
+    dispatch_once(&t, ^{
+        isoFmt = [NSDateFormatter new];
+        isoFmt.dateFormat = @"yyyy-MM-dd";
+        isoFmt.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
+        prettyFmt = [NSDateFormatter new];
+        prettyFmt.dateFormat = @"MMM dd, yyyy";
+        prettyFmt.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
+    });
     NSMutableArray *plans = [NSMutableArray array];
     for (MKProductTermItemModel *item in self.selectedTermDetail.productTermItemList) {
+        NSString *dateStr = item.expirationDate ?: @"";
+        NSDate *d = [isoFmt dateFromString:dateStr];
+        if (d) dateStr = [prettyFmt stringFromDate:d];
         [plans addObject:@{
-            @"date": item.expirationDate ?: @"--",
-            @"amount": item.repaymentAmount ?: @"--",
-            @"principal": item.principalAmountDue ?: @"--",
-            @"interest": item.interestAmountDue ?: @"--",
+            @"date": dateStr.length > 0 ? dateStr : @"--",
+            @"amount":    [item.repaymentAmount     mk_formattedPesoAmount] ?: @"--",
+            @"principal": [item.principalAmountDue  mk_formattedPesoAmount] ?: @"--",
+            @"interest":  [item.interestAmountDue   mk_formattedPesoAmount] ?: @"--",
         }];
-    }
-    if (plans.count == 0) {
-        plans = [@[
-            @{ @"date": @"Aug 18, 2025", @"amount": @"₱3,753", @"principal": @"₱3,333", @"interest": @"₱420" },
-            @{ @"date": @"Sep 18, 2025", @"amount": @"₱3,753", @"principal": @"₱3,333", @"interest": @"₱420" },
-            @{ @"date": @"Oct 18, 2025", @"amount": @"₱3,753", @"principal": @"₱3,333", @"interest": @"₱420" }
-        ] mutableCopy];
     }
     MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypeRepaymentPlan
                                                           config:@{ @"plans": plans }];

@@ -801,7 +801,7 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
     CGFloat tableInsetX = S(18);
     CGFloat tableW = W - tableInsetX * 2;
     CGFloat headerH = S(40);
-    CGFloat rowH = S(43);
+    CGFloat rowH = S(54);    // 行高加大, 容纳 2 行日期 "May 31,\n2026"
     CGFloat tableH = headerH + plans.count * rowH + S(8);
     UIView *table = [[UIView alloc] initWithFrame:CGRectMake(tableInsetX, y, tableW, tableH)];
     table.backgroundColor = MKHexColor(0xF3F3EE);
@@ -809,9 +809,15 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
     table.clipsToBounds = YES;
     [self.containerView addSubview:table];
 
-    // 4 列等宽 (左右各留 14 padding)
+    // Pencil csQgk 列宽比例: date 45 / amount 40 / principal 40 / interest 30 (总 155, 都 left-align)
+    // 但实际数据 "₱ 10,728.15" 比 Pencil 的 "₱3,753" 长, 需按比例放大到 tableW 内
     CGFloat colPad = S(14);
-    CGFloat colW = (tableW - colPad * 2) / 4.0;
+    CGFloat inner = tableW - colPad * 2;
+    CGFloat ratios[4] = { 0.26, 0.27, 0.27, 0.20 };   // date 略窄强制 2 行换行, 数值列 27%, interest 最窄
+    CGFloat colX[4]; CGFloat colW[4];
+    CGFloat acc = colPad;
+    for (NSInteger i = 0; i < 4; i++) { colW[i] = inner * ratios[i]; colX[i] = acc; acc += colW[i]; }
+
     NSArray<NSString *> *headers = @[ @"Due date", @"Amount\nDue", @"Principal\ndue", @"Interest\ndue" ];
     for (NSInteger i = 0; i < 4; i++) {
         UILabel *h = [UILabel new];
@@ -820,11 +826,11 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
         h.textColor = MKHexColor(0x171718);
         h.numberOfLines = 2;
         h.textAlignment = NSTextAlignmentLeft;
-        h.frame = CGRectMake(colPad + i * colW, S(8), colW, S(32));
+        h.frame = CGRectMake(colX[i], S(8), colW[i], S(32));
         [table addSubview:h];
     }
 
-    // 数据行
+    // 数据行: 日期允许 2 行 (e.g. "May 31,\n2026"), 数值列单行 (压缩字号防截断)
     NSArray *keys = @[ @"date", @"amount", @"principal", @"interest" ];
     for (NSInteger r = 0; r < (NSInteger)plans.count; r++) {
         NSDictionary *item = plans[r];
@@ -837,12 +843,21 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
         for (NSInteger c = 0; c < 4; c++) {
             UILabel *v = [UILabel new];
             v.text = item[keys[c]] ?: @"";
-            // Pencil: date 12 normal #666666, 其余 12 bold(700) #171718
             BOOL isDate = (c == 0);
+            // Pencil: date 12 normal #666666, 数值 12 bold #171718
             v.font = [UIFont systemFontOfSize:S(12) weight:isDate ? UIFontWeightRegular : UIFontWeightBold];
             v.textColor = isDate ? MKHexColor(0x666666) : MKHexColor(0x171718);
-            v.numberOfLines = 2;
-            v.frame = CGRectMake(colPad + c * colW, rowY + S(8), colW, S(28));
+            v.numberOfLines = isDate ? 2 : 1;
+            if (isDate) {
+                v.lineBreakMode = NSLineBreakByWordWrapping;   // "May 31, 2026" → 换行 "May 31,\n2026"
+            } else {
+                v.adjustsFontSizeToFitWidth = YES;             // 数值列防截断
+                v.minimumScaleFactor = 0.7;
+            }
+            // 数值列垂直居中 (单行); 日期列容纳 2 行
+            CGFloat valueH = isDate ? S(40) : S(20);
+            CGFloat valueY = rowY + (rowH - valueH) * 0.5;
+            v.frame = CGRectMake(colX[c], valueY, colW[c], valueH);
             [table addSubview:v];
         }
     }
