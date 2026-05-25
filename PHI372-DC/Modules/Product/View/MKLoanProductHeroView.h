@@ -31,6 +31,9 @@ typedef NS_ENUM(NSInteger, MKHeroVariant) {
               amountText:(NSString *)amountText
               subLabel:(NSString *)subLabel;
 
+/// 加载产品 logo (顶部白底圆角小框)
+- (void)setProductLogoURL:(nullable NSString *)urlStr;
+
 /// 是否多金额 (决定 amount chevron 显示 + sub label 文案)
 @property (nonatomic, assign) BOOL isMultiAmount;
 

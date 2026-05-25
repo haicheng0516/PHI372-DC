@@ -7,13 +7,14 @@
 
 #import "MKLoanProductHeroView.h"
 #import "MKConstants.h"
+#import <SDWebImage/SDWebImage.h>
 
 static const CGFloat kY0 = 106.0;
 
 @interface MKLoanProductHeroView ()
 @property (nonatomic, assign) MKHeroVariant variant;
 
-@property (nonatomic, strong) UIView *iconBox;
+@property (nonatomic, strong) UIImageView *iconBox;
 @property (nonatomic, strong) UILabel *appNameLabel;
 @property (nonatomic, strong) UIControl *termCapsule;
 @property (nonatomic, strong) UILabel *termLabel;
@@ -49,9 +50,11 @@ static const CGFloat kY0 = 106.0;
 }
 
 - (void)buildFull {
-    _iconBox = [UIView new];
+    _iconBox = [UIImageView new];
     _iconBox.backgroundColor = kColorWhite;
     _iconBox.layer.cornerRadius = kScaleH(7);
+    _iconBox.layer.masksToBounds = YES;
+    _iconBox.contentMode = UIViewContentModeScaleAspectFit;
     [self addSubview:_iconBox];
 
     _appNameLabel = [UILabel new];
@@ -131,6 +134,11 @@ static const CGFloat kY0 = 106.0;
     self.amountLabel.text = amountText.length > 0 ? amountText : @"--";
     self.amountSubText.text = subLabel.length > 0 ? subLabel : @"loan amount";
     [self setNeedsLayout];
+}
+
+- (void)setProductLogoURL:(NSString *)urlStr {
+    if (urlStr.length == 0) { _iconBox.image = nil; return; }
+    [_iconBox sd_setImageWithURL:[NSURL URLWithString:urlStr]];
 }
 
 - (void)setIsMultiAmount:(BOOL)isMultiAmount {

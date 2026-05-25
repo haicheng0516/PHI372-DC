@@ -161,7 +161,8 @@ static const CGFloat kWhiteCardLocalY = 132.0;
     self.radioMark.backgroundColor = kColorPrimary;
     self.radioMark.layer.cornerRadius = kScaleW(4);
     self.radioMark.userInteractionEnabled = NO;
-    self.radioMark.hidden = YES;
+    self.radioMark.hidden = NO;   // 默认选中 (对齐 259 isCheckboxSelected=YES, line 328)
+    _termsAccepted = YES;
     [self.radioRing addSubview:self.radioMark];
 
     self.termsLabel = [UILabel new];
@@ -205,6 +206,7 @@ static const CGFloat kWhiteCardLocalY = 132.0;
 - (void)configureWithProduct:(MKLoanProductModel *)product {
     self.hero.isMultiAmount = product.isMultiAmount;
     self.hero.isMultiTerm = product.isMultiTerm;
+    [self.hero setProductLogoURL:product.productLogo];
     [self.hero configureAppName:product.productName
                        termText:product.termText
                      amountText:product.displayAmount
