@@ -9,6 +9,7 @@
 #import "MKCommonParams.h"
 #import "MKEncryptManager.h"
 #import "MKNetworkManager.h"
+#import "MKBottomSheetView.h"
 #import <UIKit/UIKit.h>
 #import <CoreLocation/CoreLocation.h>
 #import <Contacts/Contacts.h>
@@ -299,55 +300,46 @@
 
 - (void)showLocationPermissionAlert {
     dispatch_async(dispatch_get_main_queue(), ^{
-        // TODO[reloan]: 后续接入 MKBottomSheetView 等价类型
-        NSString *message = @"Please allow access to location in the settings so that you can complete the loan application";
-        NSLog(@"[Reloan/Seamless] would show alert type=%@ msg=%@", @"LocationPermission", message);
-
-        void (^onConfirm)(void) = ^{
-            self.isWaitingForLocationPermission = NO;
-            [self cancel];
+        __weak typeof(self) wself = self;
+        MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypePermissionLocation config:nil];
+        // Confirm: 不清 flag, 用户从 Settings 返回时 appWillEnterForeground → handleAuthChange 自动续流
+        sheet.onConfirmTapped = ^{
             [[UIApplication sharedApplication] openURL:[NSURL URLWithString:UIApplicationOpenSettingsURLString]
                                                options:@{} completionHandler:nil];
-            if ([self.delegate respondsToSelector:@selector(seamlessOrderManagerDidCancelLocationPermission:)]) {
-                [self.delegate seamlessOrderManagerDidCancelLocationPermission:self];
-            }
         };
-        void (^onCancel)(void) = ^{
-            self.isWaitingForLocationPermission = NO;
-            [self cancel];
-            if ([self.delegate respondsToSelector:@selector(seamlessOrderManagerDidCancelLocationPermission:)]) {
-                [self.delegate seamlessOrderManagerDidCancelLocationPermission:self];
+        // Cancel: 用户主动取消流程
+        sheet.onCancelTapped = ^{
+            wself.isWaitingForLocationPermission = NO;
+            wself.isProcessing = NO;
+            [wself updateState:MKSeamlessOrderStateFailed];
+            if ([wself.delegate respondsToSelector:@selector(seamlessOrderManagerDidCancelLocationPermission:)]) {
+                [wself.delegate seamlessOrderManagerDidCancelLocationPermission:wself];
             }
+            [wself resetInternal];
         };
-        // 占位: UI 接入前直接走 cancel 分支
-        (void)onConfirm;
-        onCancel();
+        [sheet show];
     });
 }
 
 - (void)showContactsPermissionAlert {
     dispatch_async(dispatch_get_main_queue(), ^{
-        // TODO[reloan]: 后续接入 MKBottomSheetView 等价类型
-        NSString *message = @"We need access to your contacts to perform fraud detection.";
-        NSLog(@"[Reloan/Seamless] would show alert type=%@ msg=%@", @"ContactsPermission", message);
-
-        void (^onConfirm)(void) = ^{
-            self.isWaitingForContactsPermission = NO;
+        __weak typeof(self) wself = self;
+        MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypePermissionContacts config:nil];
+        // Confirm: 不清 flag, 用户从 Settings 返回时 appWillEnterForeground 重检通讯录授权
+        sheet.onConfirmTapped = ^{
             [[UIApplication sharedApplication] openURL:[NSURL URLWithString:UIApplicationOpenSettingsURLString]
                                                options:@{} completionHandler:nil];
-            if ([self.delegate respondsToSelector:@selector(seamlessOrderManagerDidCancelContactsPermission:)]) {
-                [self.delegate seamlessOrderManagerDidCancelContactsPermission:self];
-            }
         };
-        void (^onCancel)(void) = ^{
-            self.isWaitingForContactsPermission = NO;
-            [self cancel];
-            if ([self.delegate respondsToSelector:@selector(seamlessOrderManagerDidCancelContactsPermission:)]) {
-                [self.delegate seamlessOrderManagerDidCancelContactsPermission:self];
+        sheet.onCancelTapped = ^{
+            wself.isWaitingForContactsPermission = NO;
+            wself.isProcessing = NO;
+            [wself updateState:MKSeamlessOrderStateFailed];
+            if ([wself.delegate respondsToSelector:@selector(seamlessOrderManagerDidCancelContactsPermission:)]) {
+                [wself.delegate seamlessOrderManagerDidCancelContactsPermission:wself];
             }
+            [wself resetInternal];
         };
-        (void)onConfirm;
-        onCancel();
+        [sheet show];
     });
 }
 

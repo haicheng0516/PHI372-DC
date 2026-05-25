@@ -21,6 +21,7 @@
 #import "MKToastView.h"
 #import "MKBottomSheetView.h"
 #import "MKProductSuccessViewController.h"
+#import "MKDataCaptureViewController.h"
 #import "MKWebViewViewController.h"
 #import "MKKYCBankCardEditViewController.h"
 #import "MKNetworkManager.h"
@@ -42,6 +43,9 @@
 @property (nonatomic, strong) NSArray<MKAmountDetailModel *> *sortedAmounts;
 
 @property (nonatomic, strong) NSArray<MKPayAccountModel *> *cards;
+
+/// 数据抓取蒙层 (通讯录上传期间 modal overlay)
+@property (nonatomic, strong, nullable) MKDataCaptureViewController *dataCaptureVC;
 @end
 
 @implementation MKProductApplyViewController
@@ -335,22 +339,55 @@
 //    - fail / shouldShowMessage 静默 (不弹错误, 与首页保持一致)
 //    - 用户取消定位 → 只关 HUD, 不返回, 让用户重试
 //    - 用户取消通讯录 / 取消整个流程 → 关 HUD + pop 返回
+//    - 通讯录上传中显示 MKDataCaptureViewController, 流程完成弹 Success 模态
 
 - (void)seamlessOrderManager:(id)manager didSubmitOrderSuccess:(NSString *)orderId {
     [SVProgressHUD showWithStatus:@"Processing..."];
 }
+
+- (void)seamlessOrderManager:(id)manager didUpdateContactUploadProgress:(NSInteger)progress {
+    [SVProgressHUD dismiss];
+    if (!self.dataCaptureVC) {
+        self.dataCaptureVC = [[MKDataCaptureViewController alloc] init];
+        self.dataCaptureVC.progress = progress;
+        [self presentViewController:self.dataCaptureVC animated:YES completion:nil];
+    } else {
+        [self.dataCaptureVC setProgress:progress animated:YES];
+    }
+}
+
 - (void)seamlessOrderManager:(id)manager didCompleteWithOrderId:(NSString *)orderId {
     [SVProgressHUD dismiss];
-    [self.navigationController pushViewController:[MKProductSuccessViewController new] animated:YES];
+    void (^showSuccess)(void) = ^{
+        MKProductSuccessViewController *succ = [[MKProductSuccessViewController alloc] init];
+        [self presentViewController:succ animated:YES completion:nil];
+    };
+    if (self.dataCaptureVC) {
+        [self.dataCaptureVC dismissViewControllerAnimated:YES completion:^{
+            self.dataCaptureVC = nil;
+            showSuccess();
+        }];
+    } else {
+        showSuccess();
+    }
 }
+
 - (void)seamlessOrderManager:(id)manager didFailWithError:(NSError *)error {
     [SVProgressHUD dismiss];
+    if (self.dataCaptureVC) {
+        [self.dataCaptureVC dismissViewControllerAnimated:YES completion:nil];
+        self.dataCaptureVC = nil;
+    }
 }
 - (void)seamlessOrderManager:(id)manager shouldShowMessage:(NSString *)message {
     // 与 259 保持一致: 不做处理
 }
 - (void)seamlessOrderManagerDidCancel:(id)manager {
     [SVProgressHUD dismiss];
+    if (self.dataCaptureVC) {
+        [self.dataCaptureVC dismissViewControllerAnimated:YES completion:nil];
+        self.dataCaptureVC = nil;
+    }
     [self.navigationController popViewControllerAnimated:YES];
 }
 - (void)seamlessOrderManagerDidCancelLocationPermission:(id)manager {
@@ -358,7 +395,10 @@
 }
 - (void)seamlessOrderManagerDidCancelContactsPermission:(id)manager {
     [SVProgressHUD dismiss];
-    [self.navigationController popViewControllerAnimated:YES];
+    if (self.dataCaptureVC) {
+        [self.dataCaptureVC dismissViewControllerAnimated:YES completion:nil];
+        self.dataCaptureVC = nil;
+    }
 }
 
 @end
