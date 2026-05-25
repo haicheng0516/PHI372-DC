@@ -798,16 +798,28 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
     }
 
     // 表格容器: 灰底 (Pencil 看起来 #F3F3EE) cornerRadius 12
+    // 行数超 maxVisibleRows 内部走滚动, 不超就按内容高度展开
     CGFloat tableInsetX = S(18);
     CGFloat tableW = W - tableInsetX * 2;
     CGFloat headerH = S(40);
-    CGFloat rowH = S(54);    // 行高加大, 容纳 2 行日期 "May 31,\n2026"
-    CGFloat tableH = headerH + plans.count * rowH + S(8);
+    CGFloat rowH = S(54);
+    NSInteger maxVisibleRows = 3;   // 默认显示 3 行 (够则按内容展开, 超出走内部滚动)
+    CGFloat fullContentH = headerH + plans.count * rowH + S(8);
+    CGFloat tableH = MIN(fullContentH, headerH + maxVisibleRows * rowH + S(8));
     UIView *table = [[UIView alloc] initWithFrame:CGRectMake(tableInsetX, y, tableW, tableH)];
     table.backgroundColor = MKHexColor(0xF3F3EE);
     table.layer.cornerRadius = S(12);
     table.clipsToBounds = YES;
     [self.containerView addSubview:table];
+
+    // 数据区滚动容器 (header 之下), 行多于 maxVisibleRows 才实际滚动
+    CGFloat scrollContentH = plans.count * rowH + S(8);
+    UIScrollView *rowsScroll = [[UIScrollView alloc]
+        initWithFrame:CGRectMake(0, headerH, tableW, tableH - headerH)];
+    rowsScroll.contentSize = CGSizeMake(tableW, scrollContentH);
+    rowsScroll.showsVerticalScrollIndicator = YES;
+    rowsScroll.alwaysBounceVertical = (plans.count > maxVisibleRows);
+    [table addSubview:rowsScroll];
 
     // Pencil csQgk 列宽比例: date 45 / amount 40 / principal 40 / interest 30 (总 155, 都 left-align)
     // 但实际数据 "₱ 10,728.15" 比 Pencil 的 "₱3,753" 长, 需按比例放大到 tableW 内
@@ -831,34 +843,33 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
     }
 
     // 数据行: 日期允许 2 行 (e.g. "May 31,\n2026"), 数值列单行 (压缩字号防截断)
+    // rowY 改为 scroll content 内坐标 (从 0 开始, 不带 headerH 偏移)
     NSArray *keys = @[ @"date", @"amount", @"principal", @"interest" ];
     for (NSInteger r = 0; r < (NSInteger)plans.count; r++) {
         NSDictionary *item = plans[r];
-        CGFloat rowY = headerH + r * rowH;
+        CGFloat rowY = r * rowH;
         if (r > 0) {
             UIView *sep = [[UIView alloc] initWithFrame:CGRectMake(S(12), rowY, tableW - S(24), 0.5)];
             sep.backgroundColor = MKHexColor(0xDFDFDF);
-            [table addSubview:sep];
+            [rowsScroll addSubview:sep];
         }
         for (NSInteger c = 0; c < 4; c++) {
             UILabel *v = [UILabel new];
             v.text = item[keys[c]] ?: @"";
             BOOL isDate = (c == 0);
-            // Pencil: date 12 normal #666666, 数值 12 bold #171718
             v.font = [UIFont systemFontOfSize:S(12) weight:isDate ? UIFontWeightRegular : UIFontWeightBold];
             v.textColor = isDate ? MKHexColor(0x666666) : MKHexColor(0x171718);
             v.numberOfLines = isDate ? 2 : 1;
             if (isDate) {
-                v.lineBreakMode = NSLineBreakByWordWrapping;   // "May 31, 2026" → 换行 "May 31,\n2026"
+                v.lineBreakMode = NSLineBreakByWordWrapping;
             } else {
-                v.adjustsFontSizeToFitWidth = YES;             // 数值列防截断
+                v.adjustsFontSizeToFitWidth = YES;
                 v.minimumScaleFactor = 0.7;
             }
-            // 数值列垂直居中 (单行); 日期列容纳 2 行
             CGFloat valueH = isDate ? S(40) : S(20);
             CGFloat valueY = rowY + (rowH - valueH) * 0.5;
             v.frame = CGRectMake(colX[c], valueY, colW[c], valueH);
-            [table addSubview:v];
+            [rowsScroll addSubview:v];
         }
     }
 
