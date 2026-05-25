@@ -20,11 +20,12 @@ static const CGFloat kBarPadBot = 16;
 
 + (MKOrderDetailBottomBarMode)modeForOrderStatus:(NSInteger)orderStatus {
     switch (orderStatus) {
-        case 32: return MKOrderDetailBottomBarModePrimaryWithdraw;
+        case 10: case 20: return MKOrderDetailBottomBarModePrimaryDataCapture;
+        case 32:          return MKOrderDetailBottomBarModePrimaryWithdraw;
         case 60: case 63: return MKOrderDetailBottomBarModeRepayAndDefer;
-        case 61: return MKOrderDetailBottomBarModePrimaryRepay;
-        case 36: return MKOrderDetailBottomBarModePrimaryModifyBank;
-        default: return MKOrderDetailBottomBarModeNone;
+        case 61:          return MKOrderDetailBottomBarModePrimaryRepay;
+        case 36:          return MKOrderDetailBottomBarModePrimaryModifyBank;
+        default:          return MKOrderDetailBottomBarModeNone;
     }
 }
 
@@ -82,6 +83,12 @@ static const CGFloat kBarPadBot = 16;
             break;
         case MKOrderDetailBottomBarModePrimaryModifyBank:
             [_primaryBtn setTitle:@"Modify Bank Card" forState:UIControlStateNormal];
+            [self stylePrimary:_primaryBtn];
+            _primaryBtn.hidden = NO;
+            _secondaryBtn.hidden = YES;
+            break;
+        case MKOrderDetailBottomBarModePrimaryDataCapture:
+            [_primaryBtn setTitle:@"Submit Information" forState:UIControlStateNormal];
             [self stylePrimary:_primaryBtn];
             _primaryBtn.hidden = NO;
             _secondaryBtn.hidden = YES;

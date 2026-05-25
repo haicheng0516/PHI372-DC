@@ -16,10 +16,11 @@ NS_ASSUME_NONNULL_BEGIN
 
 typedef NS_ENUM(NSInteger, MKOrderDetailBottomBarMode) {
     MKOrderDetailBottomBarModeNone = 0,
-    MKOrderDetailBottomBarModePrimaryWithdraw,
-    MKOrderDetailBottomBarModeRepayAndDefer,
-    MKOrderDetailBottomBarModePrimaryRepay,
-    MKOrderDetailBottomBarModePrimaryModifyBank,
+    MKOrderDetailBottomBarModePrimaryWithdraw,        // 32 待提现: "Withdraw"
+    MKOrderDetailBottomBarModeRepayAndDefer,          // 60/63 待还款: "Repay" + "Defer"
+    MKOrderDetailBottomBarModePrimaryRepay,           // 61 逾期: "Repay"
+    MKOrderDetailBottomBarModePrimaryModifyBank,      // 36: "Modify Bank Card"
+    MKOrderDetailBottomBarModePrimaryDataCapture,     // 10/20: "Submit Information" (当页数据抓取)
 };
 
 @interface MKOrderDetailBottomBar : UIView

@@ -347,14 +347,23 @@ typedef struct {
                             statusText:statusText];
     [self.hero setProductLogoURL:self.orderDetailModel.product.productLogo];
 
-    // Bank row
+    // Bank row — 31 审核拒绝 / 50 放款中 不显示银行卡区域 (对齐 259 shouldShowBankAccount)
+    BOOL showBank = !(status == 31 || status == 50);
     NSString *acct = self.orderDetailModel.bankCard.accountNo ?: @"-";
     self.bankAccountLabel.text = acct;
+    self.bankLogoView.hidden     = !showBank;
+    self.bankAccountLabel.hidden = !showBank;
+    self.bankDivider.hidden      = !showBank;
 
-    // Detail rows — 按 status 决定字段集
-    NSArray<NSDictionary *> *rowConfigs = [self rowConfigsForStatus:status];
-    NSArray<NSString *> *rowValues = [self rowValuesForStatus:status info:info];
-    [self rebuildDetailRowsWithConfigs:rowConfigs values:rowValues];
+    // Detail rows — 按 status + 值条件动态生成 (隐藏空值行, 卡高自动收缩)
+    NSArray<NSDictionary *> *rows = [self buildRowsForStatus:status info:info];
+    NSMutableArray *configs = [NSMutableArray array];
+    NSMutableArray *values  = [NSMutableArray array];
+    for (NSDictionary *r in rows) {
+        [configs addObject:@{ @"label": r[@"label"], @"hasInfo": r[@"hasInfo"] }];
+        [values  addObject:r[@"value"]];
+    }
+    [self rebuildDetailRowsWithConfigs:configs values:values];
 
     // 底部描述
     self.bottomMessageLabel.text = [self bottomMessageForStatus:status];
@@ -391,61 +400,95 @@ typedef struct {
     [self.detailRows setValues:values];
 }
 
-#pragma mark - status → 字段集 / 字段值 / 底部描述
+#pragma mark - status → 行集合 (动态)
 
-- (NSArray<NSDictionary *> *)rowConfigsForStatus:(NSInteger)status {
-    // 5 行基础: Amount received(ⓘ) / Interest(ⓘ) / Service fee(ⓘ) / Date of application / Due date
-    NSArray *base = @[
-        @{ @"label": @"Amount received", @"hasInfo": @YES },
-        @{ @"label": @"Interest",        @"hasInfo": @YES },
-        @{ @"label": @"Service fee",     @"hasInfo": @YES },
-        @{ @"label": @"Date of application", @"hasInfo": @NO },
-        @{ @"label": @"Due date",        @"hasInfo": @NO },
-    ];
-    BOOL extended = (status == 60 || status == 61 || status == 63);  // 待还款 / 逾期 / 展期
-    if (!extended) return base;
-
-    // +5 行: Total repayment / Amount of deduction / Service fee / Amount Due / Deferment charge
-    NSMutableArray *m = [base mutableCopy];
-    [m addObjectsFromArray:@[
-        @{ @"label": @"Total repayment",      @"hasInfo": @NO },
-        @{ @"label": @"Amount of deduction",  @"hasInfo": @NO },
-        @{ @"label": @"Service fee",          @"hasInfo": @NO },
-        @{ @"label": @"Amount Due",           @"hasInfo": @NO },
-        @{ @"label": @"Deferment charge",     @"hasInfo": @NO },
-    ]];
-    return m;
+/// 把字符串值视作"有值"的判定 (非空 且 数字 > 0)
+static BOOL MKHasPositiveAmount(NSString *raw) {
+    if (raw.length == 0) return NO;
+    return [raw doubleValue] > 0.0;
 }
 
-- (NSArray<NSString *> *)rowValuesForStatus:(NSInteger)status info:(MKOrderDetailInfo *)info {
-    // 待提现 (32) 时, 用 selected 的 termDetail 数据 (重选后实时更新)
-    NSString *received, *interest, *fee, *applyDate, *dueDate;
+/// 返回 row 数组, 每项 = @{label, hasInfo, value}; 隐藏的行直接不在数组里
+/// 字段子集 / 显隐规则对齐 259 UnifiedProductCell.updateVisibilityForStatusXX + Pencil 行 label
+- (NSArray<NSDictionary *> *)buildRowsForStatus:(NSInteger)status info:(MKOrderDetailInfo *)info {
+    NSMutableArray *rows = [NSMutableArray array];
+
+    // 5 base rows — 所有 status 都有
+    // 待提现(32) 用 withdrawnDetail 的 selectedTermDetail 数据(用户重选金额/期限后实时更新)
+    NSString *received, *interest, *fee, *applyDate, *dueDate, *payoutDate;
     if (status == 32 && self.withdrawnDetailModel) {
         MKWithdrawnTermDetail *st = [self selectedTermDetail];
-        received  = MKFmtMoney(st.arrivalAmount   ?: info.receiptAmount);
-        interest  = MKFmtMoney(st.interestAmount  ?: info.interestAmount);
-        fee       = MKFmtMoney(st.feeAmount       ?: info.feeAmount);
-        applyDate = st.borrowingDate ?: info.applyDate ?: @"-";
-        dueDate   = st.repaymentDate ?: info.dueDate   ?: @"-";
+        received   = MKFmtMoney(st.arrivalAmount  ?: info.receiptAmount);
+        interest   = MKFmtMoney(st.interestAmount ?: info.interestAmount);
+        fee        = MKFmtMoney(st.feeAmount      ?: info.feeAmount);
+        applyDate  = st.borrowingDate ?: info.applyDate ?: @"-";
+        dueDate    = st.repaymentDate ?: info.dueDate   ?: @"-";
+        payoutDate = info.payoutDate;
     } else {
-        received  = MKFmtMoney(info.receiptAmount);
-        interest  = MKFmtMoney(info.interestAmount);
-        fee       = MKFmtMoney(info.feeAmount);
-        applyDate = info.applyDate ?: @"-";
-        dueDate   = info.dueDate ?: @"-";
+        received   = MKFmtMoney(info.receiptAmount);
+        interest   = MKFmtMoney(info.interestAmount);
+        fee        = MKFmtMoney(info.feeAmount);
+        applyDate  = info.applyDate ?: @"-";
+        dueDate    = info.dueDate ?: @"-";
+        payoutDate = info.payoutDate;
     }
-    NSMutableArray *vals = [@[ received, interest, fee, applyDate, dueDate ] mutableCopy];
+    [rows addObject:@{ @"label":@"Amount received",     @"hasInfo":@YES, @"value":received  }];
+    [rows addObject:@{ @"label":@"Interest",            @"hasInfo":@YES, @"value":interest  }];
+    [rows addObject:@{ @"label":@"Service fee",         @"hasInfo":@YES, @"value":fee       }];
 
-    if (status == 60 || status == 61 || status == 63) {
-        [vals addObjectsFromArray:@[
-            MKFmtMoney(info.totalRepaymentAmount),
-            MKFmtMoney(info.reductionAmount),
-            MKFmtMoney(info.feeAmount),
-            MKFmtMoney(info.shouldRepaymentAmount),
-            MKFmtMoney(info.dueExtensionFeeAmount),
-        ]];
+    // 申请时间 — 259 规则: 存在 payoutDate 时隐藏申请时间, 仅显示放款时间
+    if (payoutDate.length > 0) {
+        // 用同位 row "Date of application" label 显示 payoutDate (Pencil 4 个页面都没单独画 "Disbursement date" row,
+        // 直接借位; 若你想分两行 row 后续再加)
+        // 这里保留 "Date of application" label, 值显示 payoutDate
+        [rows addObject:@{ @"label":@"Date of application", @"hasInfo":@NO, @"value":payoutDate }];
+    } else {
+        [rows addObject:@{ @"label":@"Date of application", @"hasInfo":@NO, @"value":applyDate }];
     }
-    return vals;
+    [rows addObject:@{ @"label":@"Due date",            @"hasInfo":@NO,  @"value":dueDate   }];
+
+    // 扩展行 — 仅 60/63/70/61 含还款类字段
+    BOOL extended = (status == 60 || status == 63 || status == 70 || status == 61);
+    if (!extended) return rows;
+
+    // Total repayment — 必显
+    [rows addObject:@{ @"label":@"Total repayment",     @"hasInfo":@NO,
+                       @"value":MKFmtMoney(info.totalRepaymentAmount) }];
+
+    // Amount of deduction — 无值不显 (259 hasReduction)
+    BOOL hasDeduction = MKHasPositiveAmount(info.reductionAmount);
+    if (hasDeduction) {
+        [rows addObject:@{ @"label":@"Amount of deduction", @"hasInfo":@NO,
+                           @"value":MKFmtMoney(info.reductionAmount) }];
+    }
+
+    // Service fee (重复) — Pencil hv74X 第二个 "Service fee" 位次=已还金额 (259 alreadyRepaymentAmount)
+    // 保留 Pencil label 但取值用 alreadyRepaymentAmount; 无值不显
+    BOOL hasRepaid = MKHasPositiveAmount(info.alreadyRepaymentAmount);
+    if (hasRepaid) {
+        [rows addObject:@{ @"label":@"Service fee",     @"hasInfo":@NO,
+                           @"value":MKFmtMoney(info.alreadyRepaymentAmount) }];
+    }
+
+    // Amount Due 剩余未还 — 60/63/61 显示(70 结清不显示); 减免和已还都无值则隐藏 (259 规则)
+    BOOL canShowAmountDue = (status == 60 || status == 63 || status == 61) && (hasDeduction || hasRepaid);
+    if (canShowAmountDue) {
+        double remain = [info.totalRepaymentAmount doubleValue]
+                      - [info.reductionAmount      doubleValue]
+                      - [info.alreadyRepaymentAmount doubleValue];
+        if (remain < 0) remain = 0;
+        [rows addObject:@{ @"label":@"Amount Due",      @"hasInfo":@NO,
+                           @"value":MKFmtMoney([NSString stringWithFormat:@"%.0f", remain]) }];
+    }
+
+    // Deferment charge 逾期费 — 仅 61 + 有值 (259 hasPenalty)
+    BOOL hasPenalty = (status == 61) && MKHasPositiveAmount(info.penaltyAmount);
+    if (hasPenalty) {
+        [rows addObject:@{ @"label":@"Deferment charge", @"hasInfo":@NO,
+                           @"value":MKFmtMoney(info.penaltyAmount) }];
+    }
+
+    return rows;
 }
 
 - (NSString *)bottomMessageForStatus:(NSInteger)status {
@@ -494,11 +537,12 @@ typedef struct {
     // Detail card: hero 下 10px (Pencil 283 → 293)
     CGFloat cardTop = heroTop + kScaleH(181);
 
-    // Detail card 内: bank row 0..66, rows start at 81
-    CGFloat bankRowH = kScaleH(66);
+    // Detail card 内: bank row 0..66, rows 起点 81 (含 bank row); 若隐藏 bank row → 行起点 21
     NSInteger rowCount = self.detailRows ? (self.detailRows.subviews.count) : 0;
     CGFloat rowsH = (rowCount > 0) ? [MKDetailRowsView viewHeightForCount:rowCount] : 0;
-    CGFloat cardH = kScaleH(81) + rowsH + kScaleH(24);  // 81 (rows offset) + rows + 24 底 padding
+    BOOL bankVisible = !self.bankLogoView.hidden;
+    CGFloat rowsTopInCard = bankVisible ? kScaleH(81) : kScaleH(21);
+    CGFloat cardH = rowsTopInCard + rowsH + kScaleH(24);  // rows 起点 + rows + 24 底 padding
 
     // Pencil 实测 (card abs y=293, 内部 = abs - cardTop=293):
     //   bank logo  abs (36,314) 38x23 → 内 (18,21)
@@ -511,7 +555,7 @@ typedef struct {
                                               cardW - kScaleW(78), kScaleH(20));
     self.bankDivider.frame      = CGRectMake(kScaleW(19), kScaleH(59), kScaleW(301), 1);
     // detailRows 内部左 padding 18 (Pencil row label x=18 from card 左)
-    self.detailRows.frame       = CGRectMake(kScaleW(18), kScaleH(81),
+    self.detailRows.frame       = CGRectMake(kScaleW(18), rowsTopInCard,
                                               cardW - kScaleW(36), rowsH);
 
     CGFloat y = cardTop + cardH + kScaleH(10);
@@ -586,10 +630,11 @@ typedef struct {
 - (void)onBottomPrimaryTapped {
     NSInteger status = self.orderDetailModel.orderDetail.orderStatus;
     switch (status) {
-        case 32:   [self performWithdraw]; break;
+        case 32:                   [self performWithdraw]; break;
         case 60: case 61: case 63: [self performRepay]; break;
-        case 36:   [self performModifyBankCard]; break;
-        default:   break;
+        case 36:                   [self performModifyBankCard]; break;
+        case 10: case 20:          [self performDataCapture]; break;
+        default:                   break;
     }
 }
 
@@ -611,6 +656,11 @@ typedef struct {
 
 - (void)performModifyBankCard {
     [SVProgressHUD showInfoWithStatus:@"Modify Bank Card — TODO"];
+}
+
+- (void)performDataCapture {
+    // 待抓取数据(10/20): 在当页直接调起数据抓取流程
+    [SVProgressHUD showInfoWithStatus:@"Submit Information — TODO (当页数据抓取)"];
 }
 
 - (void)onRepayPlanTapped {
