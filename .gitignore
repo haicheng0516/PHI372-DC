@@ -1,0 +1,21 @@
+# Build artifacts
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdatad/
+
+# Workflow assets (not source)
+_DEFERRED/
+_figma_raw/
+_screenshots/
+images/
+image-import*.png
+
+# Session work notes
+task_plan.md
+progress.md
+findings.md
+.claude/
+
+# macOS
+.DS_Store

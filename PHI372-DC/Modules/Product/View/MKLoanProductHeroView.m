@@ -1,0 +1,202 @@
+//
+//  MKLoanProductHeroView.m
+//  PHI372-DC
+//
+//  Pencil 坐标 (375 frame, hero 起 y=106). Hero 内 local y = pencil_y - 106.
+//
+
+#import "MKLoanProductHeroView.h"
+#import "MKConstants.h"
+
+static const CGFloat kY0 = 106.0;
+
+@interface MKLoanProductHeroView ()
+@property (nonatomic, assign) MKHeroVariant variant;
+
+@property (nonatomic, strong) UIView *iconBox;
+@property (nonatomic, strong) UILabel *appNameLabel;
+@property (nonatomic, strong) UIControl *termCapsule;
+@property (nonatomic, strong) UILabel *termLabel;
+@property (nonatomic, strong) UIImageView *termCapsuleChevron;
+@property (nonatomic, strong) UIControl *amountSubLabel;
+@property (nonatomic, strong) UILabel *amountSubText;
+@property (nonatomic, strong) UILabel *amountLabel;
+@property (nonatomic, strong) UIControl *amountChevron;
+@property (nonatomic, strong) UIImageView *moneyBag;
+@end
+
+@implementation MKLoanProductHeroView
+
++ (CGFloat)heightForVariant:(MKHeroVariant)variant {
+    switch (variant) {
+        case MKHeroVariantFull:    return kScaleH(244);
+        case MKHeroVariantCompact: return kScaleH(171);
+        case MKHeroVariantMini:    return kScaleH(144);
+    }
+}
+
+- (instancetype)initWithVariant:(MKHeroVariant)variant {
+    if (self = [super initWithFrame:CGRectZero]) {
+        _variant = variant;
+        self.backgroundColor = kColorPrimary;
+        self.layer.cornerRadius = kScaleH(24);
+        if (variant == MKHeroVariantFull) {
+            [self buildFull];
+        }
+        // TODO: buildCompact / buildMini 在接入相应页面时实现
+    }
+    return self;
+}
+
+- (void)buildFull {
+    _iconBox = [UIView new];
+    _iconBox.backgroundColor = kColorWhite;
+    _iconBox.layer.cornerRadius = kScaleH(7);
+    [self addSubview:_iconBox];
+
+    _appNameLabel = [UILabel new];
+    _appNameLabel.font = kFontRegular(14);
+    _appNameLabel.textColor = kColorWhite;
+    [self addSubview:_appNameLabel];
+
+    _termCapsule = [UIControl new];
+    _termCapsule.backgroundColor = kColorPrimaryDark;
+    _termCapsule.layer.cornerRadius = kScaleH(17.5);
+    [_termCapsule addTarget:self action:@selector(termCapsuleTap) forControlEvents:UIControlEventTouchUpInside];
+    [self addSubview:_termCapsule];
+
+    _termLabel = [UILabel new];
+    _termLabel.font = kFontRegular(14);
+    _termLabel.textColor = kColorWhite;
+    _termLabel.textAlignment = NSTextAlignmentCenter;
+    _termLabel.userInteractionEnabled = NO;
+    [_termCapsule addSubview:_termLabel];
+
+    UIImageSymbolConfiguration *smallCfg = [UIImageSymbolConfiguration configurationWithPointSize:10 weight:UIImageSymbolWeightBold];
+    UIImage *smallChevron = [[UIImage systemImageNamed:@"chevron.right" withConfiguration:smallCfg]
+                              imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+    _termCapsuleChevron = [[UIImageView alloc] initWithImage:smallChevron];
+    _termCapsuleChevron.tintColor = kColorPrimary;
+    _termCapsuleChevron.contentMode = UIViewContentModeCenter;
+    _termCapsuleChevron.backgroundColor = kColorWhite;
+    _termCapsuleChevron.layer.cornerRadius = kScaleW(10);
+    _termCapsuleChevron.hidden = YES;
+    _termCapsuleChevron.userInteractionEnabled = NO;
+    [_termCapsule addSubview:_termCapsuleChevron];
+
+    _amountSubLabel = [UIControl new];
+    [_amountSubLabel addTarget:self action:@selector(amountSubTap) forControlEvents:UIControlEventTouchUpInside];
+    [self addSubview:_amountSubLabel];
+
+    _amountSubText = [UILabel new];
+    _amountSubText.font = kFontRegular(14);
+    _amountSubText.textColor = [kColorWhite colorWithAlphaComponent:0.45];
+    _amountSubText.userInteractionEnabled = NO;
+    [_amountSubLabel addSubview:_amountSubText];
+
+    // Pencil eQqbA: Inter 28 / 600. 原稿 #000000, 实际深绿底用白
+    _amountLabel = [UILabel new];
+    _amountLabel.font = [UIFont systemFontOfSize:kScaleW(28) weight:UIFontWeightSemibold];
+    _amountLabel.textColor = kColorWhite;
+    [self addSubview:_amountLabel];
+
+    _amountChevron = [UIControl new];
+    _amountChevron.backgroundColor = kColorWhite;
+    _amountChevron.layer.cornerRadius = kScaleW(18);
+    _amountChevron.hidden = YES;
+    [_amountChevron addTarget:self action:@selector(amountChevronTap) forControlEvents:UIControlEventTouchUpInside];
+    [self addSubview:_amountChevron];
+
+    UIImageSymbolConfiguration *bigCfg = [UIImageSymbolConfiguration configurationWithPointSize:14 weight:UIImageSymbolWeightBold];
+    UIImageView *amountChevronIcon = [[UIImageView alloc] initWithImage:
+                                      [[UIImage systemImageNamed:@"chevron.right" withConfiguration:bigCfg]
+                                       imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]];
+    amountChevronIcon.tintColor = kColorPrimary;
+    amountChevronIcon.contentMode = UIViewContentModeCenter;
+    amountChevronIcon.tag = 8810;
+    amountChevronIcon.userInteractionEnabled = NO;
+    [_amountChevron addSubview:amountChevronIcon];
+
+    _moneyBag = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"mk_money_bag"]];
+    _moneyBag.contentMode = UIViewContentModeScaleAspectFit;
+    [self addSubview:_moneyBag];
+}
+
+- (void)configureAppName:(NSString *)appName
+                termText:(NSString *)termText
+              amountText:(NSString *)amountText
+              subLabel:(NSString *)subLabel {
+    self.appNameLabel.text = appName.length > 0 ? appName : @"APPname";
+    self.termLabel.text = termText.length > 0 ? termText : @"-- Days";
+    self.amountLabel.text = amountText.length > 0 ? amountText : @"--";
+    self.amountSubText.text = subLabel.length > 0 ? subLabel : @"loan amount";
+    [self setNeedsLayout];
+}
+
+- (void)setIsMultiAmount:(BOOL)isMultiAmount {
+    _isMultiAmount = isMultiAmount;
+    [self setNeedsLayout];
+}
+
+- (void)setIsMultiTerm:(BOOL)isMultiTerm {
+    _isMultiTerm = isMultiTerm;
+    [self setNeedsLayout];
+}
+
+#pragma mark - Layout
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    if (self.variant != MKHeroVariantFull) return;
+    [self layoutFull];
+}
+
+- (void)layoutFull {
+    // Pencil 坐标都是相对 375 frame, hero 在 (18, 106). hero 内 x' = pencil_x - 18, y' = pencil_y - 106
+    self.iconBox.frame      = CGRectMake(kScaleW(35 - 18), kScaleH(119 - kY0), kScaleW(24), kScaleW(24));
+    self.appNameLabel.frame = CGRectMake(kScaleW(68 - 18), kScaleH(124 - kY0), kScaleW(120), kScaleH(20));
+
+    // term capsule: chevron 独立按 isMultiTerm 控制 (对齐 259: 当前 amount 的 termList.count > 1 才显示)
+    CGFloat capsuleW = self.isMultiTerm ? kScaleW(107) : kScaleW(84);
+    CGFloat capsuleH = kScaleH(35);
+    CGFloat capsuleRight = kScaleW(349 - 18);
+    self.termCapsule.frame = CGRectMake(capsuleRight - capsuleW, kScaleH(118 - kY0), capsuleW, capsuleH);
+
+    self.termCapsuleChevron.hidden = !self.isMultiTerm;
+    if (self.isMultiTerm) {
+        self.termCapsuleChevron.frame = CGRectMake(capsuleW - kScaleW(26),
+                                                    (capsuleH - kScaleW(20)) * 0.5,
+                                                    kScaleW(20), kScaleW(20));
+        self.termLabel.frame = CGRectMake(0, 0, capsuleW - kScaleW(30), capsuleH);
+    } else {
+        self.termLabel.frame = self.termCapsule.bounds;
+    }
+
+    self.amountSubLabel.frame = CGRectMake(kScaleW(35 - 18), kScaleH(159 - kY0), kScaleW(280), kScaleH(20));
+    self.amountSubText.frame  = self.amountSubLabel.bounds;
+    self.amountLabel.frame    = CGRectMake(kScaleW(35 - 18), kScaleH(182 - kY0), kScaleW(240), kScaleH(42));
+
+    self.amountChevron.hidden = !self.isMultiAmount;
+    if (self.isMultiAmount) {
+        self.amountChevron.frame = CGRectMake(kScaleW(181 - 18), kScaleH(185 - kY0),
+                                              kScaleW(36), kScaleW(36));
+        UIImageView *icon = (UIImageView *)[self.amountChevron viewWithTag:8810];
+        icon.frame = self.amountChevron.bounds;
+    }
+
+    self.moneyBag.frame = CGRectMake(kScaleW(291 - 18), kScaleH(173 - kY0), kScaleW(56), kScaleH(51));
+}
+
+#pragma mark - Actions
+
+- (void)termCapsuleTap {
+    if (self.isMultiTerm && self.onTermCapsuleTapped) self.onTermCapsuleTapped();
+}
+- (void)amountChevronTap {
+    if (self.onAmountChevronTapped) self.onAmountChevronTapped();
+}
+- (void)amountSubTap {
+    if (self.onAmountSubLabelTapped) self.onAmountSubLabelTapped(self.amountSubLabel);
+}
+
+@end

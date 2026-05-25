@@ -1,0 +1,6 @@
+framework module Pods_PHI372_DC {
+  umbrella header "Pods-PHI372-DC-umbrella.h"
+
+  export *
+  module * { export * }
+}

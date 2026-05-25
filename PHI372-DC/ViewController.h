@@ -2,13 +2,10 @@
 //  ViewController.h
 //  PHI372-DC
 //
-//  Created by Seacity on 2026/5/19.
+//  入口菜单 — 列出所有 60 frame 对应的 VC + Bottom Sheet, 便于逐页验证
 //
 
-#import <UIKit/UIKit.h>
+#import "MKBaseViewController.h"
 
-@interface ViewController : UIViewController
-
-
+@interface ViewController : MKBaseViewController
 @end
-
