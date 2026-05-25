@@ -1,13 +1,9 @@
-//
 //  MKProductApplyViewController.m
 //  PHI372-DC
-//
-//  对齐 259 ProductApplicationController:
 //    - selectionMode 由 home 路由时按 amountDetailList.count == 1 决定
 //    - 多金额: amount chevron + picker, 切换重置 selectedTermDetail = newAmount.termList[0]
 //    - 单金额: amount 静态展示, 不响应点击
 //    - term chevron: 永远独立按 当前 amount.termDetailList.count > 1 判断
-//
 
 #import "MKProductApplyViewController.h"
 #import "MKConstants.h"
@@ -36,7 +32,7 @@
 @property (nonatomic, strong, nullable) MKTermDetailModel *selectedTermDetail;
 @property (nonatomic, strong, nullable) MKPayAccountModel *selectedAccount;
 
-/// 多金额时: 按 loanAmount 从大到小排序后的 amount list (对齐 259 line 294-303)
+/// 多金额时: 按 loanAmount 从大到小排序后的 amount list
 /// 单金额时: 不使用
 @property (nonatomic, strong) NSArray<MKAmountDetailModel *> *sortedAmounts;
 
@@ -64,7 +60,6 @@
     return self;
 }
 
-/// 对齐 259 initializeAmountSelectionMode: 默认 amount = 最大, term = 该 amount termList[0]
 - (void)resolveDefaultSelection {
     if (!self.termData) return;
     if (self.selectionMode == MKLoanAmountSelectionModeMultiple) {
@@ -202,7 +197,6 @@
     sheet.onSelected = ^(NSInteger idx, id value) {
         if (idx < wself.sortedAmounts.count) {
             wself.selectedAmountDetail = wself.sortedAmounts[idx];
-            // 对齐 259 line 467-469: 切金额自动重置到该 amount 的 termList[0]
             wself.selectedTermDetail = wself.selectedAmountDetail.termDetailList.firstObject;
             [wself.tableView reloadData];
         }
@@ -212,7 +206,7 @@
 
 - (void)showTermPickerSheet {
     NSArray<MKTermDetailModel *> *terms = self.selectedAmountDetail.termDetailList;
-    if (terms.count <= 1) return;   // 对齐 259 line 700-702
+    if (terms.count <= 1) return;
     NSMutableArray *titles = [NSMutableArray array];
     NSInteger currentIdx = 0;
     for (NSInteger i = 0; i < terms.count; i++) {
@@ -236,7 +230,6 @@
 #pragma mark - Bank Account
 
 - (void)bankAccountAction {
-    // 对齐 259 line 505-510: 无卡 → 直跳加卡页
     if (self.cards.count == 0) {
         [self pushBankCardEditPage];
         return;
@@ -326,7 +319,6 @@
     params.bankCardBindId     = self.selectedAccount.bankCardBindId;
     params.termResponseData   = self.termData.originalDictionary;
 
-    // 对齐 259 ProductApplicationController.proceedToStartSeamlessOrderWithProductId:
     // 不显示 HUD; 视觉反馈由后续的数据抓取 sheet 承担
     MKSeamlessOrderManager *mgr = [MKSeamlessOrderManager sharedManager];
     mgr.delegate = self;
@@ -334,14 +326,12 @@
 }
 
 #pragma mark - MKSeamlessOrderManagerDelegate
-//  对齐 259 ProductApplicationController:
 //    - fail / shouldShowMessage 静默 (不弹错误, 与首页保持一致)
 //    - 用户取消定位 → 只关 HUD, 不返回, 让用户重试
 //    - 用户取消通讯录 / 取消整个流程 → 关 HUD + pop 返回
 //    - 通讯录上传中显示 MKDataCaptureViewController, 流程完成弹 Success 模态
 
 - (void)seamlessOrderManager:(id)manager didSubmitOrderSuccess:(NSString *)orderId {
-    // 对齐 259: 只 log, 不显示 HUD; 数据抓取阶段由 dataCaptureSheet 承担反馈
 }
 
 - (void)seamlessOrderManager:(id)manager didUpdateContactUploadProgress:(NSInteger)progress {
@@ -363,7 +353,7 @@
     [self dismissDataCaptureSheet];
     __weak typeof(self) wself = self;
     MKBottomSheetView *succ = [MKBottomSheetView sheetWithType:MKBottomSheetTypeApplySuccess config:nil];
-    // Confirm: 返回上一页 (对齐 259 popViewControllerAnimated 行为)
+    // Confirm: 返回上一页
     succ.onConfirmTapped = ^{
         [wself.navigationController popViewControllerAnimated:YES];
     };
@@ -379,7 +369,6 @@
     [self.navigationController popViewControllerAnimated:YES];
 }
 - (void)seamlessOrderManager:(id)manager shouldShowMessage:(NSString *)message {
-    // 与 259 保持一致: 不做处理
 }
 - (void)seamlessOrderManagerDidCancel:(id)manager {
     [SVProgressHUD dismiss];

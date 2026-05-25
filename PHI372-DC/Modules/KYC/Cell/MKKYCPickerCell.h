@@ -1,9 +1,5 @@
-//
 //  MKKYCPickerCell.h
 //  PHI372-DC
-//
-//  KYC 表单选择 Cell - 移植自 334 RDKYCPickerCell, UI 适配 PHI372 设计.
-//
 
 #import "MKBaseTableViewCell.h"
 

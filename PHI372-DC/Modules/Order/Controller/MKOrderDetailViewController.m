@@ -1,6 +1,4 @@
-//
 //  MKOrderDetailViewController.m
-//
 
 #import "MKOrderDetailViewController.h"
 #import "MKConstants.h"
@@ -347,7 +345,7 @@ typedef struct {
                             statusText:statusText];
     [self.hero setProductLogoURL:self.orderDetailModel.product.productLogo];
 
-    // Bank row — 31 审核拒绝 / 50 放款中 不显示银行卡区域 (对齐 259 shouldShowBankAccount)
+    // Bank row — 31 审核拒绝 / 50 放款中 不显示银行卡区域
     BOOL showBank = !(status == 31 || status == 50);
     NSString *acct = self.orderDetailModel.bankCard.accountNo ?: @"-";
     self.bankAccountLabel.text = acct;
@@ -409,7 +407,6 @@ static BOOL MKHasPositiveAmount(NSString *raw) {
 }
 
 /// 返回 row 数组, 每项 = @{label, hasInfo, value}; 隐藏的行直接不在数组里
-/// 字段子集 / 显隐规则对齐 259 UnifiedProductCell.updateVisibilityForStatusXX + Pencil 行 label
 - (NSArray<NSDictionary *> *)buildRowsForStatus:(NSInteger)status info:(MKOrderDetailInfo *)info {
     NSMutableArray *rows = [NSMutableArray array];
 

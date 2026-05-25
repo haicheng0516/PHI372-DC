@@ -1,7 +1,4 @@
-//
 //  MKProductStateResponse.m
-//  PHI372-DC — 照搬 334 RDProductStateResponse
-//
 
 #import "MKProductStateResponse.h"
 

@@ -1,15 +1,11 @@
-//
 //  MKKYCContactViewController.m
 //  PHI372-DC — Figma 3:1044 KYC-紧急联系人
-//
-//  数据模型/请求/校验完全照搬 334 RDKYC3ViewController, 只 UI 用 PHI372 的 cell:
 //    - self.contacts: NSMutableArray<NSMutableDictionary*>, 3 个 dict (relation/relationKey/name/phone)
 //    - self.relationOptions / self.relationKeys: 从 /kyc/four/search-iterm 拿 buttonList[].label/key
 //    - self.emailValue: NSString
 //    - relation 选 → contacts[i][relation]=label, contacts[i][relationKey]=key
 //    - 通讯录回填 → contacts[i][name]=fullName, [phone]=filter+strip63+strip0
 //    - submit: 拼 prefix dict, email 非空才挂; relationKey 为优先值, fallback relation
-//
 
 #import "MKKYCContactViewController.h"
 #import "MKKYCInputCell.h"
@@ -30,13 +26,11 @@
 static const NSInteger kContactCount = 3;
 
 @interface MKKYCContactViewController () <UITableViewDataSource, UITableViewDelegate, CNContactPickerDelegate>
-// 照搬 334 数据模型
 @property (nonatomic, strong) NSMutableArray<NSMutableDictionary *> *contacts;
 @property (nonatomic, strong) NSArray<NSString *> *relationOptions;
 @property (nonatomic, strong) NSArray<NSString *> *relationKeys;
 @property (nonatomic, assign) NSInteger currentContactIndex;
 @property (nonatomic, copy) NSString *emailValue;
-// 259 同款: 从后端 search-iterm 抓的 phone/name regex, 通讯录回填时立刻校验
 @property (nonatomic, copy) NSString *phoneRegex;
 @property (nonatomic, copy) NSString *nameRegex;
 // UI section 标题
@@ -77,7 +71,7 @@ static const NSInteger kContactCount = 3;
     [self requestFormItems];
 }
 
-#pragma mark - 拉 relationOptions / relationKeys (照搬 334 RDKYC3.requestFormItems)
+#pragma mark - 拉 relationOptions / relationKeys
 
 - (void)requestFormItems {
     if (self.kycId.length == 0) return;
@@ -103,7 +97,6 @@ static const NSInteger kContactCount = 3;
                     strongSelf.relationOptions = [labels copy];
                     strongSelf.relationKeys = [keys copy];
                 }
-                // 259 同款: 抓 phone/name 的 regularExpression, 给通讯录回填时校验用
                 NSString *code = item.itemCode.lowercaseString;
                 if ([code containsString:@"phone"] && item.regularExpression.length > 0 && strongSelf.phoneRegex.length == 0) {
                     strongSelf.phoneRegex = item.regularExpression;
@@ -236,7 +229,7 @@ static const NSInteger kContactCount = 3;
     UIView *footer = [UIView new]; footer.backgroundColor = kColorCardSecondary; return footer;
 }
 
-#pragma mark - Relation picker (照搬 334 RDKYC3.showRelationPickerForIndex)
+#pragma mark - Relation picker
 
 - (void)showRelationPickerForIndex:(NSInteger)idx {
     [self.view endEditing:YES];
@@ -268,7 +261,7 @@ static const NSInteger kContactCount = 3;
     }];
 }
 
-#pragma mark - 通讯录 (照搬 334 RDKYC3.selectContactForIndex)
+#pragma mark - 通讯录
 
 - (void)selectContactForIndex:(NSInteger)idx {
     [self.view endEditing:YES];
@@ -292,7 +285,6 @@ didSelectContactProperty:(CNContactProperty *)contactProperty {
         phone = [MKPhoneValidator normalizeFromContact:rawPhone];
     }
 
-    // 照搬 259: 校验失败弹错 + return, 不赋值
     NSString *nameError = [self validateName:fullName];
     if (nameError) {
         [SVProgressHUD showErrorWithStatus:nameError];
@@ -315,7 +307,7 @@ didSelectContactProperty:(CNContactProperty *)contactProperty {
     }
 }
 
-#pragma mark - 校验 (照搬 259 validateName / validatePhoneNumber)
+#pragma mark - 校验
 
 - (NSString *)validateName:(NSString *)name {
     name = [name stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
@@ -334,7 +326,6 @@ didSelectContactProperty:(CNContactProperty *)contactProperty {
         NSPredicate *p = [NSPredicate predicateWithFormat:@"SELF MATCHES %@", self.phoneRegex];
         if (![p evaluateWithObject:phone]) return @"Invalid phone number format";
     }
-    // 259 同款: 跟此页面其他联系人验重
     for (NSInteger i = 0; i < (NSInteger)self.contacts.count; i++) {
         if (i == currentIdx) continue;
         NSString *other = self.contacts[i][@"phone"] ?: @"";
@@ -345,12 +336,12 @@ didSelectContactProperty:(CNContactProperty *)contactProperty {
     return nil;
 }
 
-#pragma mark - Submit (照搬 334 RDKYC3.continueAction + submitContactInfo)
+#pragma mark - Submit
 
 - (void)continueAction {
     [self.view endEditing:YES];
 
-    // 校验联系人数据 (照搬 259: relation + name + phone 三段, 加最终跨人去重)
+    // 校验联系人数据
     NSMutableArray<NSString *> *seenPhones = [NSMutableArray array];
     for (NSInteger i = 0; i < kContactCount; i++) {
         NSDictionary *c = self.contacts[i];

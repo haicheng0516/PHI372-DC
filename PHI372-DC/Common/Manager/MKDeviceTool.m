@@ -1,7 +1,5 @@
-//
 //  MKDeviceTool.m
 //  PHI372-DC
-//
 
 #import "MKDeviceTool.h"
 #import "MKCommonParams.h"
@@ -17,7 +15,7 @@
 
 @implementation MKDeviceTool
 
-#pragma mark - Hardware identifier (inlined from 334 RDDeviceInfo)
+#pragma mark - Hardware identifier (inlined from 334 )
 
 + (NSString *)hardwareMachineIdentifier {
     struct utsname systemInfo;

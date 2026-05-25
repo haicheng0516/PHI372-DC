@@ -1,10 +1,8 @@
-//
 //  MKKYCPaymentViewController.m
 //  Figma 3:983 KYC-支付认证 (银行卡信息) — 用户决策: 不在 KYC 主链路, 属产品申请流(下单前绑卡).
-//  接口对齐 PHI259-DC BankAccountController:
+//  接口对齐  BankAccountController:
 //    POST /app/v3/payAccountInfo/payAccountItemList → 拉表单字段 (payAccountInfoItemDtoList)
 //    POST /app/v3/payAccountInfo/save → 新建绑卡 (kycCommitItemList + defaultFlag)
-//
 
 #import "MKKYCPaymentViewController.h"
 #import "MKConstants.h"

@@ -1,11 +1,7 @@
-//
 //  MKKYCFinanceViewController.m
-//  Figma 3:936 KYC-财务状况 (对应 334 RDKYC2 Work Information)
-//
-//  Phase 9: 对接 334 业务流
+//  Figma 3:936 KYC-财务状况 (对应 334  Work Information)
 //    - /app/v3/kyc/four/search-iterm (kycId=work_questionnaire) 拉表单字段
 //    - /app/v3/kyc/four/work 提交, 成功后 push KYC3 Contact
-//
 
 #import "MKKYCFinanceViewController.h"
 #import "MKConstants.h"

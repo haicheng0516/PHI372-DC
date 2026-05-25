@@ -1,9 +1,5 @@
-//
 //  MKNetworkManager.h
 //  PHI372-DC
-//
-//  移植自 REXDC334 RDNetworkManager (AFNetworking 4.0.1)
-//
 
 #import <Foundation/Foundation.h>
 

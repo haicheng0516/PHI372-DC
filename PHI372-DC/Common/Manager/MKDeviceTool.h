@@ -1,8 +1,5 @@
-//
 //  MKDeviceTool.h
 //  PHI372-DC
-//  设备信息采集 & 通讯录采集工具 — 移植自 334 RDDeviceTool
-//
 
 #import <Foundation/Foundation.h>
 

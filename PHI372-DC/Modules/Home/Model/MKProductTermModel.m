@@ -1,7 +1,5 @@
-//
 //  MKProductTermModel.m
 //  PHI372-DC
-//
 
 #import "MKProductTermModel.h"
 
@@ -130,7 +128,7 @@
 
 - (NSArray<MKAmountDetailModel *> *)sortedAmountDetailList {
     if (!self.isMultiAmount) return self.amountDetailList ?: @[];
-    // 从大到小 (照搬 259 ProductApplicationController:294-303)
+    // 从大到小
     return [self.amountDetailList sortedArrayUsingComparator:^NSComparisonResult(MKAmountDetailModel *a, MKAmountDetailModel *b) {
         double va = a.loanAmount.doubleValue;
         double vb = b.loanAmount.doubleValue;

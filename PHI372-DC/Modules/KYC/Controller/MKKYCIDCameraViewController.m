@@ -1,14 +1,11 @@
-//
 //  MKKYCIDCameraViewController.m
 //  PHI372-DC — Figma 3:1126/1140 KYC-身份证拍照 (AVFoundation 相机预览 + 取景框 + 双态)
-//
 //  布局:
 //    AVCaptureVideoPreviewLayer 全屏 (后置相机)
 //    黑遮罩 0.85 (覆盖在 preview 上, 取景区域抠掉)
 //    337×541 取景框 (虚线 #BBCB2F 3px dash 9-9 r=30)
 //    顶部提示文 + 右上 x 按钮
 //    底部按钮: 拍前=圆形快门 / 拍后=旋转(retake) + 圆形勾(confirm)
-//
 
 #import "MKKYCIDCameraViewController.h"
 #import "MKConstants.h"
@@ -27,7 +24,6 @@
 @property (nonatomic, strong) AVCapturePhotoOutput *photoOutput;
 @property (nonatomic, strong) UIImage *capturedImage;
 @property (nonatomic, assign) CGRect viewfinderRect;
-// 照搬 334 RDKYC5: CMMotionManager 监听设备方向, confirm 时回传真实 orientation
 @property (nonatomic, strong) CMMotionManager *motionManager;
 @property (nonatomic, assign) UIDeviceOrientation currentDeviceOrientation;
 @property (nonatomic, assign) UIDeviceOrientation capturedDeviceOrientation;
@@ -272,7 +268,6 @@ didFinishProcessingPhoto:(AVCapturePhoto *)photo
         self.previewImageView.image = img;
         self.previewImageView.hidden = NO;
     }
-    // 照搬 334: 拍照瞬间快照当前 orientation
     self.capturedDeviceOrientation = self.currentDeviceOrientation;
     self.captured = YES;
     self.shutter.hidden = YES;
@@ -294,7 +289,6 @@ didFinishProcessingPhoto:(AVCapturePhoto *)photo
 
 - (void)confirm {
     if (self.onImageCaptured) {
-        // 照搬 334: 优先用拍照瞬间方向, faceUp/faceDown/unknown 兜底当前/Portrait
         UIDeviceOrientation orientation = self.capturedDeviceOrientation;
         if (orientation == UIDeviceOrientationUnknown ||
             orientation == UIDeviceOrientationFaceUp ||
@@ -305,7 +299,6 @@ didFinishProcessingPhoto:(AVCapturePhoto *)photo
             orientation = UIDeviceOrientationPortrait;
         }
         self.onImageCaptured(self.capturedImage, orientation);
-        // 照搬 334: present 出来的相机用 dismiss 关闭
         [self dismissViewControllerAnimated:YES completion:nil];
         return;
     }
@@ -314,7 +307,6 @@ didFinishProcessingPhoto:(AVCapturePhoto *)photo
 }
 
 - (void)closeTap {
-    // 照搬 334: present 出来的相机用 dismiss 关闭
     [self dismissViewControllerAnimated:YES completion:nil];
 }
 
@@ -326,7 +318,7 @@ didFinishProcessingPhoto:(AVCapturePhoto *)photo
 
 - (UIStatusBarStyle)preferredStatusBarStyle { return UIStatusBarStyleLightContent; }
 
-#pragma mark - Orientation (照搬 334 RDKYC5)
+#pragma mark - Orientation
 
 - (void)startMonitoringOrientation {
     [self stopMonitoringOrientation];

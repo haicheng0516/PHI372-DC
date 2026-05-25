@@ -1,7 +1,5 @@
-//
 //  MKProfileViewController.m
 //  PHI372-DC — Figma 3:338 个人中心
-//
 //  布局精确还原 Figma 3:338 (375×812):
 //    顶部绿色 BG     0,0,375,222    fill #385330  圆角 0 0 14 14
 //      + 钱币插画图 (image fill, scaleMode=FILL)
@@ -14,7 +12,6 @@
 //    Card #2 白卡     (18,417) 339×205  r=14   4 行: About / Terms of the loan / Privacy policy / Log out
 //    菜单文字          Source Sans Pro 600 14, #0D1218 (SF semibold 14)
 //    每行 icon x=38(图内 38) 24×24; chevron 右边距=15
-//
 
 #import "MKProfileViewController.h"
 #import "MKConstants.h"
@@ -226,7 +223,7 @@
     }
 }
 
-#pragma mark - Logout (334 风格: 调 /auth/logout, 失败也本地登出)
+#pragma mark - Logout
 
 - (void)performLogout {
     NSDictionary *body = [[MKEncryptManager sharedManager] generateRequestBody:@{}];

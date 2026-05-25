@@ -1,9 +1,5 @@
-//
 //  MKProductTermModel.h
 //  PHI372-DC
-//
-//  termV3 接口数据模型 (产品期限/金额详情) — 移植自 334 RDProductTermModel
-//
 
 #import <Foundation/Foundation.h>
 

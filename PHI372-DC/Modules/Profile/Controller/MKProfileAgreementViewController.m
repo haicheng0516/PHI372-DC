@@ -1,9 +1,5 @@
-//
 //  MKProfileAgreementViewController.m
-//  PHI372-DC — Figma 3:1313 Terms / Privacy 模板 (协议样式)
-//
 //  N 个灰底 Doc 卡 (含 "Article N" 小节标题 + 段落)
-//
 
 #import "MKProfileAgreementViewController.h"
 

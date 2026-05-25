@@ -1,13 +1,9 @@
-//
 //  MKNetworkManager.m
 //  PHI372-DC
-//
-//  移植自 REXDC334 RDNetworkManager.m (AFNetworking 4.0.1):
 //    - JSON 上行/下行用 AFJSONRequest/ResponseSerializer
 //    - 每次请求 setValue UA forHTTPHeaderField
 //    - 全局 resultCode 拦截: 2000001/2000002/2002001 → 重新登录; 2009006 → 强更
-//    - 强更弹窗用 MKBottomSheetView (替代 334 的 RDAlertView)
-//
+//    - 强更弹窗用 MKBottomSheetView (替代 334 的 )
 
 #import "MKNetworkManager.h"
 #import <AFNetworking/AFNetworking.h>

@@ -1,8 +1,6 @@
-//
 //  MKConstants.h
 //  PHI372-DC
 //  所有颜色值严格来自Figma设计稿JSON
-//
 
 #ifndef MKConstants_h
 #define MKConstants_h
@@ -83,7 +81,7 @@ static inline UIWindow * _Nullable mk_keyWindow(void) {
 #define kColorSuccess       MKHexColor(0x4CAF50)
 #define kColorError         MKHexColor(0xF44336)
 
-// === 兼容老模板宏 (避免业务层引用断裂) ===
+// === 兼容旧宏 (避免业务层引用断裂) ===
 #define kColorPrimaryLight  kColorTextSecondary
 #define kColorOrange        MKHexColor(0xEB8A54)
 #define kColorOrangeLight   MKHexColor(0xEBD754)
@@ -138,7 +136,7 @@ static inline UIWindow * _Nullable mk_keyWindow(void) {
 
 // App 显示名: 全部走 Info.plist (CFBundleDisplayName → CFBundleName → CFBundleExecutable)
 // 用户可见的 Profile/About/网络 appName 字段都走这个,避免工程名 (PHI372-DC) 泄露
-// 新马甲只需改 Info.plist 一处
+// 本工程只需改 Info.plist 一处
 static inline NSString *MKAppDisplayName(void) {
     NSDictionary *info = [[NSBundle mainBundle] infoDictionary];
     NSString *n = info[@"CFBundleDisplayName"];

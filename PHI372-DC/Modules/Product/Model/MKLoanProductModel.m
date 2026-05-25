@@ -1,6 +1,4 @@
-//
 //  MKLoanProductModel.m
-//
 
 #import "MKLoanProductModel.h"
 #import "MKProductTermModel.h"
@@ -20,7 +18,6 @@
     m.termText = termDetail ? [termDetail displayTermText] : @"-- Days";
     m.amountSubLabel = data.isMultiAmount ? @"Please select loan amount manually" : @"loan amount";
 
-    // 5 行明细从 termDetail 取, 格式对齐 259 ProductApplicationController:632-638
     m.arrivalAmount  = [termDetail.arrivalAmount  mk_formattedAmount];   // 千分位
     m.interestAmount = [termDetail.interestAmount mk_formattedAmount];   // 千分位
     // service fee: 字符串去逗号 → integer 截掉小数 (e.g. "4400.00" → "4400")

@@ -1,13 +1,9 @@
-//
 //  MKProductApplyViewController.h
 //  PHI372-DC
-//
-//  产品申请页 — 对齐 259 ProductApplicationController 单 VC + selectionMode 架构.
 //  UI 走 Pencil 372:
 //    - 多金额: Hero amount chevron + picker (Pencil b4hMw0)
 //    - 单金额: Hero amount 静态文本, 无 chevron     (Pencil LbSVz)
 //  term picker 独立按 当前 amount.termDetailList.count > 1 决定可点
-//
 
 #import "MKBaseViewController.h"
 @class MKProductTermDataModel;

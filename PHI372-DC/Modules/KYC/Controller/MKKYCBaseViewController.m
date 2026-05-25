@@ -1,6 +1,4 @@
-//
 //  MKKYCBaseViewController.m
-//
 
 #import "MKKYCBaseViewController.h"
 #import "MKConstants.h"
@@ -119,7 +117,6 @@
 #pragma mark - 通用方法: 校验
 
 - (BOOL)validateFormItems {
-    // 照搬 259: 提交前对 selectedValue 先 trim 再 length 判 (全空格也算未填), 通过后回写
     for (MKKYCItemModel *item in self.formItems) {
         if (item.isRequired != 1) continue;
         NSString *raw = item.selectedValue ?: @"";

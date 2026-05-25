@@ -1,6 +1,4 @@
-//
 //  MKKYCInputCell.m
-//
 
 #import "MKKYCInputCell.h"
 #import "MKConstants.h"
@@ -86,7 +84,6 @@
     return YES;
 }
 
-// 照搬 259 FormInputCell shouldChangeCharactersInRange 主体: maxLength 拦截超长(粘贴/快速输入)
 - (BOOL)textField:(UITextField *)textField shouldChangeCharactersInRange:(NSRange)range replacementString:(NSString *)string {
     if (self.maxLength == 0) return YES;
     if (string.length == 0) return YES;  // 删除/退格放行

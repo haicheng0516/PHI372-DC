@@ -1,7 +1,5 @@
-//
 //  MKOrderListViewController.m
 //  PHI372-DC — Figma 3:599 历史订单 (accordion)
-//
 //  布局精确还原 Figma 3:599 (375×812):
 //    顶部 Rectangle 4232 (0,0,375,484) linear-gradient 180° #385330 27% → #F8F8F7 53%
 //    状态栏 0,0,375,44; 返回箭头 (30,64) 24×24 白; 标题 "Order" (164,64) 白
@@ -24,7 +22,6 @@
 //      divider (9,74) 301×1 #E9E9E4
 //      "Date of application:" label (12,88) #C7C7C7
 //      date value (右, 88) #171718
-//
 
 #import "MKOrderListViewController.h"
 #import "MKConstants.h"
@@ -425,7 +422,7 @@ static NSString *MKFormatOrderDate(NSString *raw) {
     [SVProgressHUD showWithStatus:@"Loading..."];
 
     NSMutableDictionary *dataForRequest = [NSMutableDictionary dictionary];
-    dataForRequest[@"orderStatus"] = @(66);  // 66 = 全部, 与 259 一致
+    dataForRequest[@"orderStatus"] = @(66);  // 66 = 全部
     NSDictionary *body = [[MKEncryptManager sharedManager] generateRequestBodyWithSignData:@{}
                                                                               requestData:dataForRequest];
     __weak typeof(self) wself = self;

@@ -1,12 +1,8 @@
-//
 //  MKKYCPersonalViewController.m
 //  Figma 3:891 KYC-个人信息认证
-//
-//  Phase 9: 对接 334 业务流
 //    - /app/v3/kyc/four/search-iterm (kycId=personal) 拉表单字段
 //    - province → /app/v3/sys/province; city → /app/v3/sys/city (省市级联)
 //    - /app/v3/kyc/four/personal 提交, 成功后 push KYC2 Finance
-//
 
 #import "MKKYCPersonalViewController.h"
 #import "MKConstants.h"
@@ -264,7 +260,6 @@ static NSString * const kCountryIdPH = @"63";
         NSNumber *sort = d[@"sort"] ?: @(0);
         if (label.length > 0) [out addObject:@{@"key": key, @"label": label, @"sort": sort}];
     }
-    // 照搬 334: 按后端 sort 字段排序 (省/市 显示顺序由后端控制)
     [out sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
         return [a[@"sort"] integerValue] - [b[@"sort"] integerValue];
     }];

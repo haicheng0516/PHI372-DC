@@ -1,9 +1,6 @@
-//
 //  MKLoanInfoCell.m
 //  PHI372-DC
-//
 //  容器 cell, 组装 3 个可复用子组件 + 本页特有 UI (银行卡子卡 / Disclaimer / Radio+Terms / Apply Now).
-//
 
 #import "MKLoanInfoCell.h"
 #import "MKLoanProductHeroView.h"
@@ -161,7 +158,7 @@ static const CGFloat kWhiteCardLocalY = 132.0;
     self.radioMark.backgroundColor = kColorPrimary;
     self.radioMark.layer.cornerRadius = kScaleW(4);
     self.radioMark.userInteractionEnabled = NO;
-    self.radioMark.hidden = NO;   // 默认选中 (对齐 259 isCheckboxSelected=YES, line 328)
+    self.radioMark.hidden = NO;   // 默认选中
     _termsAccepted = YES;
     [self.radioRing addSubview:self.radioMark];
 

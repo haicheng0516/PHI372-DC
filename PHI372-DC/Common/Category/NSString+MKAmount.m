@@ -1,7 +1,5 @@
-//
 //  NSString+MKAmount.m
 //  PHI372-DC
-//
 
 #import "NSString+MKAmount.h"
 
@@ -37,7 +35,6 @@
     return [self rd_formattedPesoAmount];
 }
 
-// 照搬 259 sc_formatRate
 - (NSString *)mk_formattedRate {
     if (self.length == 0) return @"";
     NSNumberFormatter *rateFormatter = [[NSNumberFormatter alloc] init];

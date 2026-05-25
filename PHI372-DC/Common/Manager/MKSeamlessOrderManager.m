@@ -1,7 +1,5 @@
-//
 //  MKSeamlessOrderManager.m
 //  PHI372-DC
-//
 
 #import "MKSeamlessOrderManager.h"
 #import "MKProductTermModel.h"
@@ -114,7 +112,6 @@
     [self resetInternal];
 }
 
-// 对齐 259 reset (L154-192)
 - (void)resetInternal {
     self.isProcessing = NO;
     self.currentState = MKSeamlessOrderStateIdle;
@@ -275,7 +272,6 @@
         [self startLocationUpdateWithTimeout];
     } else if (status == kCLAuthorizationStatusDenied || status == kCLAuthorizationStatusRestricted) {
         if (self.isForceCaptureFlow) {
-            // 对齐 259 handleAuthorizationStatusChange L481-487:
             //   首次拒系统定位 → notifyMessage @"" + cancel(silent, 不发 delegate, 不 pop)
             //   用户留在 apply 页, 再点 Apply Now 时 proceedToLocationCheck 走"已 Denied"才弹自定义
             [self silentlyStopProcessing];
@@ -285,7 +281,6 @@
     }
 }
 
-/// 对齐 259 SCSeamlessOrderManager.cancel (L131-152): 完全静默, 不发任何 delegate
 /// 用于"系统弹窗拒绝"或"从设置返回仍未授权"路径, 让用户留在 apply 页, 下次点 Apply Now 走自定义二次弹窗
 - (void)silentlyStopProcessing {
     if (self.locationManager) {
@@ -309,7 +304,6 @@
                 self.isWaitingForContactsPermission = NO;
                 [self startContactsUpload];
             } else {
-                // 对齐 259 applicationWillEnterForeground L1356-1357: 静默结束流程, 不 pop
                 self.isWaitingForContactsPermission = NO;
                 [self silentlyStopProcessing];
             }
@@ -457,7 +451,7 @@
         if (!deviceInfo || deviceInfo.count == 0) {
             [self proceedToContactsCheck]; return;
         }
-        // 签名只用 orderId，deviceInfo 作为完整请求数据（与259一致）
+        // 签名只用 orderId，deviceInfo 作为完整请求数据
         NSDictionary *signData = @{@"orderId": orderId ?: @""};
         NSDictionary *body = [[MKEncryptManager sharedManager] generateRequestBodyWithSignData:signData requestData:deviceInfo];
         [[MKNetworkManager sharedManager] post:@"/app/v3/mobile/device"
@@ -554,7 +548,7 @@
         dispatch_semaphore_t sema = dispatch_semaphore_create(0);
 
         for (NSArray<NSDictionary *> *batch in batches) {
-            // 签名只用 orderId，list 和 allowContact 不参与签名（与259一致）
+            // 签名只用 orderId，list 和 allowContact 不参与签名
             NSDictionary *signData = @{@"orderId": self.currentOrderId ?: @""};
             NSMutableDictionary *requestData = [NSMutableDictionary dictionary];
             requestData[@"orderId"] = self.currentOrderId ?: @"";
@@ -596,7 +590,7 @@
 
     [self updateState:MKSeamlessOrderStateCompleting];
 
-    // 签名只用 orderId，allowContact 不参与签名（与259一致）
+    // 签名只用 orderId，allowContact 不参与签名
     NSDictionary *signData = @{@"orderId": self.currentOrderId ?: @""};
     NSDictionary *requestData = @{
         @"orderId": self.currentOrderId ?: @"",
@@ -624,7 +618,6 @@
     [self resetInternal];
 }
 
-// 对齐 259 notifyFailure (L1161-1169): 发 didFailWithError, 然后 reset
 - (void)notifyFail:(NSString *)message {
     self.isProcessing = NO;
     [self updateState:MKSeamlessOrderStateFailed];

@@ -1,14 +1,10 @@
-//
 //  MKKYCIDViewController.m
 //  PHI372-DC — Figma 3:1099 KYC-身份证认证
-//
-//  Phase 9: 对接 334 业务流
 //    - /app/v3/kyc/four/search-iterm (kycId=identity_liveness) 拉证件类型 (取首个 buttonList[0].buttonKey)
 //    - face box → push Liveness, callback 回填 faceImage
 //    - front box → push IDCamera, callback 回填 idImage
 //    - /app/v3/kyc/four/liveness (identity_front_img + liveness_img + card_type) 提交
 //      成功后 popToRootViewController (回 Home), Home viewWillAppear 自动刷接口 → userStatus 翻转
-//
 
 #import "MKKYCIDViewController.h"
 #import "MKConstants.h"
@@ -224,7 +220,6 @@
 
 - (void)resolveIDTypeKeyFromList:(NSArray<MKKYCItemModel *> *)list {
     for (MKKYCItemModel *it in list) {
-        // 照搬 334: 优先取 picker 类型且 buttonList 非空的首个 buttonKey
         if ([it isPickerType] && it.buttonList.count > 0) {
             self.idTypeKey = it.buttonList.firstObject.buttonKey;
             return;
@@ -232,7 +227,7 @@
     }
 }
 
-#pragma mark - 拍照入口 (照搬 334: 进相机前先检查权限)
+#pragma mark - 拍照入口
 
 - (BOOL)ensureCameraPermissionOrAlert {
     AVAuthorizationStatus status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
@@ -265,7 +260,6 @@
         strongSelf.faceImage = image;
         [strongSelf.faceBox showCaptured:image];
     };
-    // 照搬 334: Liveness 用 push
     [self.navigationController pushViewController:vc animated:YES];
 }
 
@@ -276,16 +270,14 @@
     kWeakSelf
     vc.onImageCaptured = ^(UIImage *image, UIDeviceOrientation orientation) {
         kStrongSelf
-        // 照搬 334: fixOrientation + 横屏 rotate
         UIImage *processed = [strongSelf processedImage:image deviceOrientation:orientation];
         strongSelf.idImage = processed;
         [strongSelf.frontBox showCaptured:processed];
     };
-    // 照搬 334: IDCamera 用 present 全屏 modal (相机生命周期独立, 不进 nav stack)
     [self presentViewController:vc animated:YES completion:nil];
 }
 
-#pragma mark - Image Processing (照搬 334 RDKYC4.processedImage)
+#pragma mark - Image Processing
 
 - (UIImage *)processedImage:(UIImage *)image deviceOrientation:(UIDeviceOrientation)orientation {
     if (!image) return nil;
@@ -318,7 +310,6 @@
     NSString *idBase64 = [self base64FromImage:self.idImage];
     NSString *faceBase64 = [self base64FromImage:self.faceImage];
 
-    // 334 同款: 非空才挂载, 避免后端误读
     NSMutableDictionary *data = [NSMutableDictionary dictionary];
     if (idBase64.length > 0)    data[@"identity_front_img"] = idBase64;
     if (faceBase64.length > 0)  data[@"liveness_img"] = faceBase64;
@@ -340,7 +331,6 @@
                 [strongSelf.navigationController popToRootViewControllerAnimated:YES];
             });
         } else if (r.resultCode == 6212011 || r.resultCode == 6212009) {
-            // 334 同款: 认证失败专用弹窗 (Pencil "KYC-身份证认证失败"), 用户点 Confirm 后清照片重拍
             MKBottomSheetView *fail = [MKBottomSheetView sheetWithType:MKBottomSheetTypeKYCFail config:nil];
             fail.onConfirmTapped = ^{
                 kStrongSelf
@@ -361,7 +351,7 @@
     }];
 }
 
-#pragma mark - base64 (照搬 334 RDKYC4.base64StringFromImage; 规则与 259 一致: 100-800KB)
+#pragma mark - base64
 
 - (NSString *)base64FromImage:(UIImage *)image {
     if (!image) return @"";

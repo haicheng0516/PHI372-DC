@@ -1,7 +1,4 @@
-//
 //  MKProductStateDetailModel.m
-//  PHI372-DC — 照搬 334 RDProductStateDetailModel
-//
 
 #import "MKProductStateDetailModel.h"
 

@@ -1,12 +1,8 @@
-//
 //  MKHomeViewController.m
 //  PHI372-DC
-//
-//  对齐 334 RDHomeViewController:
 //   - viewWillAppear 触发 5 个 API: version + config + suphome + product/list + user/info
 //   - userStatus==10 → 显示装饰图 + sticky Apply Now; 否则显示产品列表
 //   - 弹窗优先级队列: ForceUpdate > WithdrawPending > ReloanTip
-//
 
 #import "MKHomeViewController.h"
 #import "MKConstants.h"
@@ -295,7 +291,6 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
             [wself refreshBottomBarVisibility];
             [wself.tableView reloadData];
             if (r.data.withdrawalOrderId.length > 0) {
-                // 照搬 334 RDHomeVC L325-326: 同时传 productId 给弹窗
                 [wself showWithdrawalAlertWithOrderId:r.data.withdrawalOrderId
                                             productId:r.data.withdrawalProductId ?: @""];
             }
@@ -398,7 +393,6 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
         [SVProgressHUD dismiss];
         NSInteger code = [resp[@"resultCode"] integerValue];
         if (code == 200) {
-            // 对齐 259 navigateToProductApplicationControllerWithResponse:
             // home 层按 amountDetailList.count==1 决定 selectionMode, 然后 push 同一个 VC
             id rawData = resp[@"data"];
             MKProductTermDataModel *termData = [rawData isKindOfClass:[NSDictionary class]]
@@ -459,7 +453,6 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
     [sheet show];
 }
 
-#pragma mark - 复借弹窗 (priority 3) — 照搬 334 RDHomeVC L606-707
 
 - (void)checkAndShowReloanTip {
     if (self.isCheckingReloanTip) return;
@@ -569,7 +562,7 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
     [self flushPendingAlertsIfNeeded];
 }
 
-#pragma mark - MKSeamlessOrderManagerDelegate (照搬 334 L711-750 简化 — 失败/完成处理)
+#pragma mark - MKSeamlessOrderManagerDelegate
 
 - (void)seamlessOrderManager:(id)manager didFailWithError:(NSError *)error {
     [SVProgressHUD dismiss];
@@ -601,7 +594,6 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView { return 2; }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    // 照搬 334 RDHomeVC L506: notice 仅在 promptCopy 非空时显示
     if (section == 0) return self.homeData.promptCopy.length > 0 ? 1 : 0;
     return self.showEmpty ? 1 : self.productList.count;
 }
@@ -622,11 +614,9 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
     }
     MKHomeProductCell *cell = [tableView dequeueReusableCellWithIdentifier:[MKHomeProductCell cellIdentifier] forIndexPath:indexPath];
     MKProductInfoModel *p = self.productList[indexPath.row];
-    // 照搬 334 RDHomeVC L530-534: ₱ 后空格, 千分位, 一个 ₱
     NSString *quota = [NSString stringWithFormat:@"₱ %@-%@",
                        [p.lowAmount rd_formattedAmount],
                        [p.highAmount rd_formattedAmount]];
-    // 利率: 照搬 259 HomeProductCardCell L170-180 (334/372 都漏了这块)
     // API 返回的是 fraction (0.0010 = 0.10%), *100 转百分比, 最多 2 位小数, 去尾零, 空值 fallback "--"
     NSString *rate;
     if (p.lowestLoanInterestRate.length > 0) {

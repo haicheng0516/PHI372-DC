@@ -1,9 +1,6 @@
-//
 //  MKLoanProductHeroView.m
 //  PHI372-DC
-//
 //  Pencil 坐标 (375 frame, hero 起 y=106). Hero 内 local y = pencil_y - 106.
-//
 
 #import "MKLoanProductHeroView.h"
 #import "MKConstants.h"
@@ -284,7 +281,7 @@ static const CGFloat kY0 = 106.0;
     self.iconBox.frame      = CGRectMake(kScaleW(35 - 18), kScaleH(119 - kY0), kScaleW(24), kScaleW(24));
     self.appNameLabel.frame = CGRectMake(kScaleW(68 - 18), kScaleH(124 - kY0), kScaleW(120), kScaleH(20));
 
-    // term capsule: chevron 独立按 isMultiTerm 控制 (对齐 259: 当前 amount 的 termList.count > 1 才显示)
+    // term capsule: chevron 独立按 isMultiTerm 控制
     CGFloat capsuleW = self.isMultiTerm ? kScaleW(107) : kScaleW(84);
     CGFloat capsuleH = kScaleH(35);
     CGFloat capsuleRight = kScaleW(349 - 18);

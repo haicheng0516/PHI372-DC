@@ -1,9 +1,5 @@
-//
 //  MKReloanFlowHandler.h
 //  PHI372-DC
-//
-//  复借流程处理器（产品状态检查 + 弹窗展示 + 无感下单触发） — 移植自 334 RDReloanFlowHandler
-//
 
 #import <Foundation/Foundation.h>
 #import "MKSeamlessOrderManager.h"

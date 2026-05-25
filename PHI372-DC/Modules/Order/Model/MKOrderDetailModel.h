@@ -1,10 +1,6 @@
-//
 //  MKOrderDetailModel.h
 //  PHI372-DC — /app/v3/order/detail 响应 data
-//
-//  对齐 259 SCOrderDetailModel (含 product/bankCard/orderDetail/isWillingRepay/message)
 //  仅保留 PHI372 详情页用到的字段; 其他状态/扩展字段后续补
-//
 
 #import <Foundation/Foundation.h>
 

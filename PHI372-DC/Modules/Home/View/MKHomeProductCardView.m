@@ -1,7 +1,5 @@
-//
 //  MKHomeProductCardView.m
 //  PHI372-DC
-//
 
 #import "MKHomeProductCardView.h"
 #import "MKConstants.h"
@@ -31,7 +29,7 @@
 
 - (void)setupContent {
     // 左下 logo 位 (Pencil Hg6T2: 28×28 cornerRadius 8 fill #385330 at 相对卡 (17, 81))
-    // Pencil 上是死色块, 实际渲染走接口 productLogo URL (照搬 334 sd_setImageWithURL)
+    // Pencil 上是死色块, 实际渲染走接口 productLogo URL
     self.logoView = [[UIImageView alloc] initWithFrame:CGRectMake(S(17), S(81), S(28), S(28))];
     self.logoView.backgroundColor = kColorPrimary;       // 加载完成前 / 无 URL 的 fallback 色块
     self.logoView.contentMode = UIViewContentModeScaleAspectFill;
@@ -103,7 +101,6 @@
 - (void)setLogoUrl:(NSString *)v {
     _logoUrl = [v copy];
     if (v.length > 0) {
-        // 照搬 334: SDWebImage 异步加载; 失败 (404 等) 保留 fallback kColorPrimary 色块
         [self.logoView sd_setImageWithURL:[NSURL URLWithString:v]];
     } else {
         self.logoView.image = nil;

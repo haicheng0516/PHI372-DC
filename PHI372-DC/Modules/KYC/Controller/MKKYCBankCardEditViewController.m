@@ -1,7 +1,6 @@
-//
 //  MKKYCBankCardEditViewController.m
 //  Pencil t06hJ "Change bank account" — 双模式 (新建 + 编辑) 同一个 VC, 同一套 UI
-//  接口对齐 PHI259-DC BankAccountController (Add + Modify):
+//  接口对齐  BankAccountController (Add + Modify):
 //    bankCardBindId > 0 → 编辑模式:
 //        POST /app/v3/payAccountInfo/list             (bankCardBindId) → 拿 recordId + 预填
 //        POST /app/v3/payAccountInfo/payAccountItemList → 表单结构
@@ -9,7 +8,6 @@
 //    bankCardBindId == 0 → 新建模式:
 //        POST /app/v3/payAccountInfo/payAccountItemList → 表单结构
 //        POST /app/v3/payAccountInfo/save             (kycCommitItemList + defaultFlag, 无 recordId)
-//
 
 #import "MKKYCBankCardEditViewController.h"
 #import "MKConstants.h"

@@ -1,9 +1,6 @@
-//
 //  MKBottomSheetView.m
 //  PHI372-DC
-//
 //  中央弹窗：内容驱动高度（按实际正文行数自适应）, 容器在屏幕几何中心
-//
 
 #import "MKBottomSheetView.h"
 #import "MKConstants.h"

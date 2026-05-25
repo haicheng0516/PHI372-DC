@@ -1,10 +1,6 @@
-//
 //  MKWithdrawnDetailModel.h
 //  PHI372-DC — /app/v3/order/withdrawn/detail 响应 data
-//
-//  对齐 259 SCWithdrawnDetailModel — 仅当 orderStatus==32 时调
 //  data 含 amountDetailList[], 每项含 termDetailList[]; 用户可在详情页重选金额/期限
-//
 
 #import <Foundation/Foundation.h>
 
