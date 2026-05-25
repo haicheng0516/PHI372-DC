@@ -331,6 +331,10 @@
 }
 
 #pragma mark - MKSeamlessOrderManagerDelegate
+//  对齐 259 ProductApplicationController:
+//    - fail / shouldShowMessage 静默 (不弹错误, 与首页保持一致)
+//    - 用户取消定位 → 只关 HUD, 不返回, 让用户重试
+//    - 用户取消通讯录 / 取消整个流程 → 关 HUD + pop 返回
 
 - (void)seamlessOrderManager:(id)manager didSubmitOrderSuccess:(NSString *)orderId {
     [SVProgressHUD showWithStatus:@"Processing..."];
@@ -340,20 +344,21 @@
     [self.navigationController pushViewController:[MKProductSuccessViewController new] animated:YES];
 }
 - (void)seamlessOrderManager:(id)manager didFailWithError:(NSError *)error {
-    [SVProgressHUD showErrorWithStatus:error.localizedDescription ?: @"Submit failed"];
-    [SVProgressHUD dismissWithDelay:2.0];
+    [SVProgressHUD dismiss];
 }
 - (void)seamlessOrderManager:(id)manager shouldShowMessage:(NSString *)message {
-    [SVProgressHUD showInfoWithStatus:message];
-    [SVProgressHUD dismissWithDelay:2.0];
+    // 与 259 保持一致: 不做处理
+}
+- (void)seamlessOrderManagerDidCancel:(id)manager {
+    [SVProgressHUD dismiss];
+    [self.navigationController popViewControllerAnimated:YES];
 }
 - (void)seamlessOrderManagerDidCancelLocationPermission:(id)manager {
-    [SVProgressHUD showErrorWithStatus:@"Location permission required"];
-    [SVProgressHUD dismissWithDelay:2.0];
+    [SVProgressHUD dismiss];
 }
 - (void)seamlessOrderManagerDidCancelContactsPermission:(id)manager {
-    [SVProgressHUD showErrorWithStatus:@"Contacts permission required"];
-    [SVProgressHUD dismissWithDelay:2.0];
+    [SVProgressHUD dismiss];
+    [self.navigationController popViewControllerAnimated:YES];
 }
 
 @end
