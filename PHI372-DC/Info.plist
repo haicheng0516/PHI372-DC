@@ -2,22 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleDisplayName</key>
-	<string>ABL Cash</string>
-	<key>NSCameraUsageDescription</key>
-	<string>We need camera access to take photos of your ID card and face for KYC verification.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>We need photo library access to save and review your captured ID photos.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>We need photo library access to save your captured photos for loan verification.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>ABL Cash requires your authorization to access location information that can be used to provide loan amounts in your area.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>ABL Cash requires your authorization to access location information that can be used to provide loan amounts in your area.</string>
-	<key>NSContactsUsageDescription</key>
-	<string>ABL Cash needs your authorization to access your contact information to conduct a loan security assessment. When authorizing, please select "Allow Full Access", otherwise it may affect your review results. Your contact information will be uploaded to the server, but this information will not be saved or shared with any third party.</string>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>Advertising authorization, such as IDFA, can provide you with better and safer personalized services.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

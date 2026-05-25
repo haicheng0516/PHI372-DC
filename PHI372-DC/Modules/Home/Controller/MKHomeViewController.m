@@ -17,7 +17,7 @@
 #import "MKHomeProductCell.h"
 #import "MKHomeKYCTipCardView.h"
 #import "MKOrderListViewController.h"
-#import "MKOrderDetailPendingWithdrawViewController.h"
+#import "MKOrderDetailViewController.h"
 #import "NSString+MKAmount.h"
 #import "MKProductStateResponse.h"
 #import "MKReloanFlowHandler.h"
@@ -446,8 +446,9 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
     __weak typeof(self) wself = self;
     sheet.onConfirmTapped = ^{
         wself.isShowingWithdrawalAlert = NO;
-        // 照搬 334 L274-279: Confirm 后跳订单详情-待提现
-        MKOrderDetailPendingWithdrawViewController *vc = [[MKOrderDetailPendingWithdrawViewController alloc] init];
+        // Confirm 后跳订单详情 (待提现 status=32, 内部按 status 自适应渲染)
+        MKOrderDetailViewController *vc = [[MKOrderDetailViewController alloc] initWithOrderId:safeOrderId];
+        vc.productId = safeProductId;
         [wself.navigationController pushViewController:vc animated:YES];
         [wself flushPendingAlertsIfNeeded];
     };

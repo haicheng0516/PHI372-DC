@@ -13,6 +13,7 @@
 #import <UIKit/UIKit.h>
 #import <CoreLocation/CoreLocation.h>
 #import <Contacts/Contacts.h>
+#import <SVProgressHUD/SVProgressHUD.h>
 
 @implementation MKSeamlessOrderParams
 @end
@@ -113,7 +114,9 @@
     [self resetInternal];
 }
 
+// 对齐 259 reset (L154-192)
 - (void)resetInternal {
+    self.isProcessing = NO;
     self.currentState = MKSeamlessOrderStateIdle;
     self.currentOrderId = nil;
     self.currentParams = nil;
@@ -121,12 +124,15 @@
     self.hasCalledOrderAPI = NO;
     self.hasCalledReadyAPI = NO;
     self.isLocationUpdating = NO;
+    self.isForceCaptureFlow = NO;
     self.isWaitingForLocationPermission = NO;
     self.isWaitingForContactsPermission = NO;
     self.latitude = @"-360";
     self.longitude = @"-360";
     if (self.locationManager) {
+        self.locationManager.delegate = nil;
         [self.locationManager stopUpdatingLocation];
+        self.locationManager = nil;
     }
 }
 
@@ -269,11 +275,24 @@
         [self startLocationUpdateWithTimeout];
     } else if (status == kCLAuthorizationStatusDenied || status == kCLAuthorizationStatusRestricted) {
         if (self.isForceCaptureFlow) {
-            [self cancel];
+            // 对齐 259 handleAuthorizationStatusChange L481-487:
+            //   首次拒系统定位 → notifyMessage @"" + cancel(silent, 不发 delegate, 不 pop)
+            //   用户留在 apply 页, 再点 Apply Now 时 proceedToLocationCheck 走"已 Denied"才弹自定义
+            [self silentlyStopProcessing];
         } else {
             [self submitOrder];
         }
     }
+}
+
+/// 对齐 259 SCSeamlessOrderManager.cancel (L131-152): 完全静默, 不发任何 delegate
+/// 用于"系统弹窗拒绝"或"从设置返回仍未授权"路径, 让用户留在 apply 页, 下次点 Apply Now 走自定义二次弹窗
+- (void)silentlyStopProcessing {
+    if (self.locationManager) {
+        [self.locationManager stopUpdatingLocation];
+    }
+    self.isProcessing = NO;
+    [self resetInternal];
 }
 
 - (void)appWillEnterForeground {
@@ -281,6 +300,7 @@
 
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         if (self.isWaitingForLocationPermission) {
+            // handleAuthChange 已授权 → 继续; 未授权 → silentlyStopProcessing (silent fail, 不 pop)
             [self handleAuthChange];
         }
         if (self.isWaitingForContactsPermission) {
@@ -289,8 +309,9 @@
                 self.isWaitingForContactsPermission = NO;
                 [self startContactsUpload];
             } else {
+                // 对齐 259 applicationWillEnterForeground L1356-1357: 静默结束流程, 不 pop
                 self.isWaitingForContactsPermission = NO;
-                [self cancel];
+                [self silentlyStopProcessing];
             }
         }
     });
@@ -300,6 +321,8 @@
 
 - (void)showLocationPermissionAlert {
     dispatch_async(dispatch_get_main_queue(), ^{
+        // 弹自定义二次弹窗前关掉 "Submitting..." HUD, 避免叠加
+        [SVProgressHUD dismiss];
         __weak typeof(self) wself = self;
         MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypePermissionLocation config:nil];
         // Confirm: 不清 flag, 用户从 Settings 返回时 appWillEnterForeground → handleAuthChange 自动续流
@@ -323,6 +346,7 @@
 
 - (void)showContactsPermissionAlert {
     dispatch_async(dispatch_get_main_queue(), ^{
+        [SVProgressHUD dismiss];
         __weak typeof(self) wself = self;
         MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypePermissionContacts config:nil];
         // Confirm: 不清 flag, 用户从 Settings 返回时 appWillEnterForeground 重检通讯录授权
@@ -457,15 +481,7 @@
 }
 
 - (void)checkContactsForce:(CNAuthorizationStatus)status {
-    // 对齐 259 SCSeamlessOrderManager.m L779-838:
-    //  - 首次拒绝 (NotDetermined → 用户点不允许) → notifyFailure 静默失败 (不 cancel/pop)
-    //  - 已 Denied/Restricted → 弹自定义二次弹窗
-    //  - iOS18 Limited → notifyFailure (Force 模式需要全部访问)
-    if (@available(iOS 18.0, *)) {
-        if (status == CNAuthorizationStatusLimited) {
-            [self notifyFail:@"Full contacts access required"]; return;
-        }
-    }
+    // 首次拒绝 → 静默失败 (留在 apply 页), 再点 Apply Now 时已是 Denied 才弹自定义弹窗
     if (status == CNAuthorizationStatusAuthorized) {
         [self startContactsUpload];
     } else if (status == CNAuthorizationStatusNotDetermined) {
@@ -473,11 +489,6 @@
         [store requestAccessForEntityType:CNEntityTypeContacts completionHandler:^(BOOL granted, NSError *error) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 CNAuthorizationStatus cur = [CNContactStore authorizationStatusForEntityType:CNEntityTypeContacts];
-                if (@available(iOS 18.0, *)) {
-                    if (cur == CNAuthorizationStatusLimited) {
-                        [self notifyFail:@"Full contacts access required"]; return;
-                    }
-                }
                 if (granted && cur == CNAuthorizationStatusAuthorized) {
                     [self startContactsUpload];
                 } else {
@@ -486,7 +497,7 @@
             });
         }];
     } else {
-        // 已 Denied/Restricted → 自定义二次弹窗
+        // 已 Denied / Restricted / iOS18 Limited → 自定义二次弹窗
         self.isWaitingForContactsPermission = YES;
         [self showContactsPermissionAlert];
     }
@@ -613,6 +624,7 @@
     [self resetInternal];
 }
 
+// 对齐 259 notifyFailure (L1161-1169): 发 didFailWithError, 然后 reset
 - (void)notifyFail:(NSString *)message {
     self.isProcessing = NO;
     [self updateState:MKSeamlessOrderStateFailed];
@@ -623,6 +635,7 @@
             [self.delegate seamlessOrderManager:self didFailWithError:error];
         });
     }
+    [self resetInternal];
 }
 
 @end

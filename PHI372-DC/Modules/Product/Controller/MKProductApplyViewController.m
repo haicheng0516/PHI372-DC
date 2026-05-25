@@ -326,7 +326,8 @@
     params.bankCardBindId     = self.selectedAccount.bankCardBindId;
     params.termResponseData   = self.termData.originalDictionary;
 
-    [SVProgressHUD showWithStatus:@"Submitting..."];
+    // 对齐 259 ProductApplicationController.proceedToStartSeamlessOrderWithProductId:
+    // 不显示 HUD; 视觉反馈由后续的数据抓取 sheet 承担
     MKSeamlessOrderManager *mgr = [MKSeamlessOrderManager sharedManager];
     mgr.delegate = self;
     [mgr startSeamlessOrderWithParams:params];
@@ -340,7 +341,7 @@
 //    - 通讯录上传中显示 MKDataCaptureViewController, 流程完成弹 Success 模态
 
 - (void)seamlessOrderManager:(id)manager didSubmitOrderSuccess:(NSString *)orderId {
-    [SVProgressHUD showWithStatus:@"Processing..."];
+    // 对齐 259: 只 log, 不显示 HUD; 数据抓取阶段由 dataCaptureSheet 承担反馈
 }
 
 - (void)seamlessOrderManager:(id)manager didUpdateContactUploadProgress:(NSInteger)progress {
@@ -370,8 +371,12 @@
 }
 
 - (void)seamlessOrderManager:(id)manager didFailWithError:(NSError *)error {
+    // didFailWithError 由"通讯录系统弹窗 1st 拒"、"订单接口失败"、"定位回调失败"等触发
+    // 用户要求: 这类失败一律返回上层 (跟 cancel 一致)
+    // 而"定位 1st 拒"走 silentlyStopProcessing(不发任何 delegate), 保留在 apply 页 — 不走这里
     [SVProgressHUD dismiss];
     [self dismissDataCaptureSheet];
+    [self.navigationController popViewControllerAnimated:YES];
 }
 - (void)seamlessOrderManager:(id)manager shouldShowMessage:(NSString *)message {
     // 与 259 保持一致: 不做处理

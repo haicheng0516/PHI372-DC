@@ -28,20 +28,48 @@
 
 #import "MKOrderListViewController.h"
 #import "MKConstants.h"
-#import "MKOrderDetailWaitRepayViewController.h"
-#import "MKOrderDetailReviewingViewController.h"
-#import "MKOrderDetailPendingWithdrawViewController.h"
+#import "MKOrderDetailViewController.h"
+#import "MKOrderListModel.h"
+#import "MKOrderStatusMapper.h"
+#import "MKNetworkManager.h"
+#import "MKEncryptManager.h"
 #import <Masonry/Masonry.h>
+#import <SVProgressHUD/SVProgressHUD.h>
 
-#pragma mark - Status chip colors (Figma)
+#pragma mark - 金额/日期格式化辅助
 
-static UIColor *MKChipColorChangeBank(void)   { return MKHexColor(0x6E1758); }
-static UIColor *MKChipColorUnfinished(void)   { return MKHexColor(0x532C6E); }
-static UIColor *MKChipColorWithdraw(void)     { return MKHexColor(0x0A7F93); }
-static UIColor *MKChipColorPendingRepay(void) { return MKHexColor(0xAF5D00); }  // Pencil #af5d00
-static UIColor *MKChipColorOverdue(void)      { return MKHexColor(0xA0721B); }  // Pencil #a0721b
-static UIColor *MKChipColorProcessing(void)   { return MKHexColor(0x385330); }
-static UIColor *MKChipColorCompleted(void)    { return MKHexColor(0x999999); }
+static NSString *MKFormatOrderAmount(NSString *raw) {
+    if (raw.length == 0) return @"₱ 0";
+    NSNumberFormatter *f = [NSNumberFormatter new];
+    f.numberStyle = NSNumberFormatterDecimalStyle;
+    f.maximumFractionDigits = 0;
+    NSNumber *n = @([raw doubleValue]);
+    NSString *s = [f stringFromNumber:n] ?: raw;
+    return [NSString stringWithFormat:@"₱ %@", s];
+}
+
+/// "2025-03-18 12:34:56" / "2025-03-18" → "Mar 18, 2025"; 解析失败原样返回
+static NSString *MKFormatOrderDate(NSString *raw) {
+    if (raw.length == 0) return @"";
+    static NSArray<NSDateFormatter *> *inputs;
+    static NSDateFormatter *output;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        NSDateFormatter *a = [NSDateFormatter new]; a.dateFormat = @"yyyy-MM-dd HH:mm:ss";
+        NSDateFormatter *b = [NSDateFormatter new]; b.dateFormat = @"yyyy-MM-dd";
+        NSDateFormatter *c = [NSDateFormatter new]; c.dateFormat = @"yyyy/MM/dd HH:mm:ss";
+        NSDateFormatter *d = [NSDateFormatter new]; d.dateFormat = @"yyyy/MM/dd";
+        inputs = @[a, b, c, d];
+        output = [NSDateFormatter new];
+        output.dateFormat = @"MMM dd, yyyy";
+        output.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
+    });
+    for (NSDateFormatter *df in inputs) {
+        NSDate *date = [df dateFromString:raw];
+        if (date) return [output stringFromDate:date];
+    }
+    return raw;
+}
 
 #pragma mark - Order Sub-Card View (319×117)
 
@@ -50,7 +78,8 @@ static UIColor *MKChipColorCompleted(void)    { return MKHexColor(0x999999); }
               chipTitle:(NSString *)chipTitle
               chipColor:(UIColor *)chipColor
                 product:(NSString *)product
-                   date:(NSString *)date;
+              dateLabel:(NSString *)dateLabel
+              dateValue:(NSString *)dateValue;
 @end
 
 @implementation MKOrderSubCard {
@@ -91,7 +120,6 @@ static UIColor *MKChipColorCompleted(void)    { return MKHexColor(0x999999); }
         _dateLabel = [UILabel new];
         _dateLabel.font = kFontRegular(14);  // Pencil 14
         _dateLabel.textColor = MKHexColor(0xC7C7C7);
-        _dateLabel.text = @"Payment date:";
         [self addSubview:_dateLabel];
 
         _dateValue = [UILabel new];
@@ -134,12 +162,14 @@ static UIColor *MKChipColorCompleted(void)    { return MKHexColor(0x999999); }
               chipTitle:(NSString *)chipTitle
               chipColor:(UIColor *)chipColor
                 product:(NSString *)product
-                   date:(NSString *)date {
+              dateLabel:(NSString *)dateLabel
+              dateValue:(NSString *)dateValue {
     _amount.text = amt;
     _chipLabel.text = chipTitle;
     _chipBg.backgroundColor = chipColor;
     _product.text = product;
-    _dateValue.text = date;
+    _dateLabel.text = dateLabel;
+    _dateValue.text = dateValue;
     [self setNeedsLayout];
 }
 @end
@@ -219,7 +249,8 @@ static UIColor *MKChipColorCompleted(void)    { return MKHexColor(0x999999); }
                   chipTitle:m[@"chipTitle"]
                   chipColor:m[@"chipColor"]
                     product:m[@"product"]
-                       date:m[@"date"]];
+                  dateLabel:m[@"dateLabel"]
+                  dateValue:m[@"dateValue"]];
         c.tag = i;
         [c addTarget:self action:@selector(cardTapped:) forControlEvents:UIControlEventTouchUpInside];
         [self addSubview:c];
@@ -250,7 +281,8 @@ static UIColor *MKChipColorCompleted(void)    { return MKHexColor(0x999999); }
 @property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, strong) CAGradientLayer *gradient;
 @property (nonatomic, strong) NSMutableArray<MKOrderAccordionSection *> *sections;
-@property (nonatomic, strong) NSArray<NSArray<NSDictionary *> *> *mockData;
+/// 4 桶, 每桶是 {amount, chipTitle, chipColor, product, dateLabel, dateValue, _model} 的字典数组
+@property (nonatomic, strong) NSMutableArray<NSMutableArray<NSDictionary *> *> *bucketedData;
 @property (nonatomic, assign) MKOrderSectionKind currentExpanded;
 @end
 
@@ -263,36 +295,12 @@ static UIColor *MKChipColorCompleted(void)    { return MKHexColor(0x999999); }
     if (self = [super init]) {
         self.navBarStyle = MKNavBarStyleNone;
         _currentExpanded = kind;
-        [self buildMockData];
+        // 初始 4 个空桶, 接口回来后 reload
+        _bucketedData = [NSMutableArray arrayWithObjects:
+                         [NSMutableArray new], [NSMutableArray new],
+                         [NSMutableArray new], [NSMutableArray new], nil];
     }
     return self;
-}
-
-- (void)buildMockData {
-    self.mockData = @[
-        @[ // SubmitApplication
-            @{ @"amount": @"₱ 50,000", @"chipTitle": @"Change bank account", @"chipColor": MKChipColorChangeBank(),
-               @"product": @"chanpinmingcheng", @"date": @"Mar 18, 2025" },
-            @{ @"amount": @"₱ 50,000", @"chipTitle": @"Unfinished Application", @"chipColor": MKChipColorUnfinished(),
-               @"product": @"chanpinmingcheng", @"date": @"Mar 18, 2025" },
-            @{ @"amount": @"₱ 50,000", @"chipTitle": @"To be withdrawn", @"chipColor": MKChipColorWithdraw(),
-               @"product": @"chanpinmingcheng", @"date": @"Mar 18, 2025" },
-        ],
-        @[ // PendingRepayment — Pencil shows two cards: Overdue + Pending Repayment
-            @{ @"amount": @"₱ 50,000", @"chipTitle": @"Overdue", @"chipColor": MKChipColorOverdue(),
-               @"product": @"chanpinmingcheng", @"date": @"Mar 18, 2025" },
-            @{ @"amount": @"₱ 50,000", @"chipTitle": @"Pending Repayment", @"chipColor": MKChipColorPendingRepay(),
-               @"product": @"chanpinmingcheng", @"date": @"Mar 18, 2025" },
-        ],
-        @[ // Processing
-            @{ @"amount": @"₱ 30,000", @"chipTitle": @"Processing", @"chipColor": MKChipColorProcessing(),
-               @"product": @"chanpinmingcheng", @"date": @"Mar 15, 2026" },
-        ],
-        @[ // Completed
-            @{ @"amount": @"₱ 10,000", @"chipTitle": @"Completed", @"chipColor": MKChipColorCompleted(),
-               @"product": @"chanpinmingcheng", @"date": @"Feb 10, 2026" },
-        ],
-    ];
 }
 
 - (void)viewDidLoad {
@@ -303,6 +311,12 @@ static UIColor *MKChipColorCompleted(void)    { return MKHexColor(0x999999); }
     [self setupScrollView];
     [self setupSections];
     [self relayoutSections];
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    [SVProgressHUD setDefaultMaskType:SVProgressHUDMaskTypeClear];
+    [self loadOrderList];
 }
 
 - (void)setupGradient {
@@ -359,8 +373,8 @@ static UIColor *MKChipColorCompleted(void)    { return MKHexColor(0x999999); }
     for (NSInteger i = 0; i < titles.count; i++) {
         MKOrderAccordionSection *sec = [[MKOrderAccordionSection alloc] init];
         sec.title = titles[i];
-        sec.items = self.mockData[i];
-        sec.expanded = (i == self.currentExpanded);
+        sec.items = self.bucketedData[i];
+        sec.expanded = YES;  // 默认 4 段全展开
         __weak typeof(self) wself = self;
         sec.onToggle = ^{ [wself toggleSection:i]; };
         sec.onItemTap = ^(NSInteger idx) { [wself didTapItemInSection:i idx:idx]; };
@@ -383,34 +397,86 @@ static UIColor *MKChipColorCompleted(void)    { return MKHexColor(0x999999); }
 }
 
 - (void)toggleSection:(NSInteger)idx {
-    // 只允许 1 个 section 展开 (与 Figma 设计一致)
-    BOOL willExpand = !self.sections[idx].expanded;
-    for (NSInteger i = 0; i < self.sections.count; i++) {
-        self.sections[i].expanded = (i == idx && willExpand);
-        [self.sections[i] reload];
-    }
-    self.currentExpanded = willExpand ? (MKOrderSectionKind)idx : -1;
+    // 每段独立切换 (默认 4 段全展开, 用户可点 chevron 单独折叠/恢复)
+    MKOrderAccordionSection *sec = self.sections[idx];
+    sec.expanded = !sec.expanded;
+    [sec reload];
     [UIView animateWithDuration:0.25 animations:^{
         [self relayoutSections];
     }];
 }
 
 - (void)didTapItemInSection:(NSInteger)section idx:(NSInteger)idx {
-    UIViewController *detail = nil;
-    switch ((MKOrderSectionKind)section) {
-        case MKOrderSectionSubmitApplication: {
-            // 按状态类型路由 (Mock: 三个分别 → Pending Withdraw / Reviewing / Pending Withdraw)
-            NSString *chip = self.mockData[section][idx][@"chipTitle"];
-            if ([chip isEqualToString:@"To be withdrawn"])      detail = [MKOrderDetailPendingWithdrawViewController new];
-            else if ([chip isEqualToString:@"Unfinished Application"]) detail = [MKOrderDetailReviewingViewController new];
-            else                                                detail = [MKOrderDetailReviewingViewController new];
-            break;
+    if (section >= (NSInteger)self.bucketedData.count) return;
+    NSArray<NSDictionary *> *bucket = self.bucketedData[section];
+    if (idx >= (NSInteger)bucket.count) return;
+    MKOrderListModel *m = bucket[idx][@"_model"];
+    if (!m) return;
+
+    // 统一走 MKOrderDetailViewController, 由它按 orderStatus 自适应渲染
+    MKOrderDetailViewController *detail = [[MKOrderDetailViewController alloc] initWithOrderId:m.orderId];
+    detail.productId = m.productId;
+    [self.navigationController pushViewController:detail animated:YES];
+}
+
+#pragma mark - API
+
+- (void)loadOrderList {
+    [SVProgressHUD showWithStatus:@"Loading..."];
+
+    NSMutableDictionary *dataForRequest = [NSMutableDictionary dictionary];
+    dataForRequest[@"orderStatus"] = @(66);  // 66 = 全部, 与 259 一致
+    NSDictionary *body = [[MKEncryptManager sharedManager] generateRequestBodyWithSignData:@{}
+                                                                              requestData:dataForRequest];
+    __weak typeof(self) wself = self;
+    [[MKNetworkManager sharedManager] post:@"/app/v3/order/list"
+                                     params:body
+                                    success:^(id resp) {
+        [SVProgressHUD dismiss];
+        if (![resp isKindOfClass:[NSDictionary class]]) return;
+        NSInteger code = [resp[@"resultCode"] integerValue];
+        if (code != 200) {
+            [SVProgressHUD showErrorWithStatus:resp[@"resultMsg"] ?: @"Failed to load orders"];
+            return;
         }
-        case MKOrderSectionPendingRepayment: detail = [MKOrderDetailWaitRepayViewController new]; break;
-        case MKOrderSectionProcessing:       detail = [MKOrderDetailReviewingViewController new]; break;
-        case MKOrderSectionCompleted:        detail = [MKOrderDetailPendingWithdrawViewController new]; break;
+        NSDictionary *data = resp[@"data"];
+        NSArray *list = [data isKindOfClass:[NSDictionary class]] ? data[@"orderList"] : nil;
+        [wself rebuildBucketsFromOrderList:list];
+    } failure:^(NSError *e) {
+        [SVProgressHUD dismiss];
+        [SVProgressHUD showErrorWithStatus:e.localizedDescription ?: @"Network error"];
+    }];
+}
+
+- (void)rebuildBucketsFromOrderList:(NSArray *)list {
+    for (NSMutableArray *bucket in self.bucketedData) [bucket removeAllObjects];
+
+    if ([list isKindOfClass:[NSArray class]]) {
+        for (id dict in list) {
+            if (![dict isKindOfClass:[NSDictionary class]]) continue;
+            MKOrderListModel *m = [[MKOrderListModel alloc] initWithDictionary:dict];
+            NSInteger bucket = [MKOrderStatusMapper sectionForStatus:m.orderStatus];
+            if (bucket < 0 || bucket >= (NSInteger)self.bucketedData.count) continue;
+
+            NSDictionary *item = @{
+                @"amount":    MKFormatOrderAmount(m.loanAmount),
+                @"chipTitle": [MKOrderStatusMapper chipTextForStatus:m.orderStatus],
+                @"chipColor": [MKOrderStatusMapper chipColorForStatus:m.orderStatus],
+                @"product":   m.productName ?: @"",
+                @"dateLabel": [MKOrderStatusMapper dateLabelForStatus:m.orderStatus],
+                @"dateValue": MKFormatOrderDate([MKOrderStatusMapper dateValueForStatus:m.orderStatus fromModel:m]),
+                @"_model":    m,
+            };
+            [self.bucketedData[bucket] addObject:item];
+        }
     }
-    if (detail) [self.navigationController pushViewController:detail animated:YES];
+
+    // 同步到 section + 重新布局
+    for (NSInteger i = 0; i < self.sections.count && i < (NSInteger)self.bucketedData.count; i++) {
+        self.sections[i].items = self.bucketedData[i];
+        [self.sections[i] reload];
+    }
+    [self relayoutSections];
 }
 
 @end

@@ -25,11 +25,18 @@ typedef NS_ENUM(NSInteger, MKHeroVariant) {
 /// Hero 当前 variant 高度
 + (CGFloat)heightForVariant:(MKHeroVariant)variant;
 
-/// 配置内容
+/// 配置内容 (Full variant — 申请页)
 - (void)configureAppName:(NSString *)appName
                 termText:(NSString *)termText
               amountText:(NSString *)amountText
               subLabel:(NSString *)subLabel;
+
+/// 配置内容 (Compact variant — 订单详情页)
+/// @param statusText 右上角状态文案 (e.g. "Under review" / "Pending Repayment" / "To be withdrawn"); 无背景, 白字
+- (void)configureCompactAppName:(NSString *)appName
+                       termText:(NSString *)termText
+                     amountText:(NSString *)amountText
+                     statusText:(NSString *)statusText;
 
 /// 加载产品 logo (顶部白底圆角小框)
 - (void)setProductLogoURL:(nullable NSString *)urlStr;
