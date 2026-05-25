@@ -22,6 +22,15 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				CLAUDE.md,
+				Common/CLAUDE.md,
+				Modules/CLAUDE.md,
+				Modules/KYC/CLAUDE.md,
+				Modules/Order/CLAUDE.md,
+				Modules/Home/CLAUDE.md,
+				Modules/Product/CLAUDE.md,
+				Modules/Profile/CLAUDE.md,
+				Modules/Login/CLAUDE.md,
 			);
 			target = 3342AA1E2FBC414C0054696B /* PHI372-DC */;
 		};
