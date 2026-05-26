@@ -26,15 +26,15 @@
 
 - (void)hideReloanTipAlert {
     if (self.currentReloanAlert) {
-        // TODO[reloan]: 后续接入 MKBottomSheetView 等价类型的 dismiss
-        NSLog(@"[Reloan/Seamless] would dismiss reloan alert (current=%@)", self.currentReloanAlert);
+        [self.currentReloanAlert dismiss];
         self.currentReloanAlert = nil;
     }
 }
 
 #pragma mark - Request Product State
 
-- (void)requestProductStateAndShowTipWithProductId:(NSString *)productId {
+- (void)requestProductStateAndShowTipWithProductId:(NSString *)productId
+                                         sheetType:(MKBottomSheetType)sheetType {
     if (self.isRequestingProductState) return;
     if (!productId || productId.length == 0) {
         [self notifyDismiss];
@@ -67,7 +67,7 @@
         }
 
         dispatch_async(dispatch_get_main_queue(), ^{
-            [strongSelf showReloanAlertWithDetail:detail];
+            [strongSelf showReloanAlertWithDetail:detail sheetType:sheetType];
         });
     } failure:^(NSError *error) {
         __strong typeof(weakSelf) strongSelf = weakSelf;
@@ -87,24 +87,27 @@
 
 #pragma mark - Show Reloan Alert
 
-- (void)showReloanAlertWithDetail:(MKProductStateDetailModel *)detail {
-    // TODO[reloan]: 后续接入 MKBottomSheetView 等价类型
-    NSString *titleText = @"Tips";
-    NSString *messageText = @"Don't miss this opportunity! Your previous application was successful. Apply again today to help you achieve your goals quickly!";
-    NSString *productName = detail.productName;
-    NSString *productAmount = [detail.loanAmount mk_formattedPesoAmount];
-    NSString *productLogoURL = detail.productLogo;
-    NSString *confirmTitle = @"Apply Now";
-    NSLog(@"[Reloan/Seamless] would show alert type=%@ title=%@ msg=%@ product=%@ amount=%@ logo=%@ confirm=%@",
-          @"ReloanProduct", titleText, messageText, productName, productAmount, productLogoURL, confirmTitle);
+- (void)showReloanAlertWithDetail:(MKProductStateDetailModel *)detail
+                        sheetType:(MKBottomSheetType)sheetType {
+    NSString *amount = [detail.loanAmount mk_formattedPesoAmount] ?: detail.loanAmount ?: @"";
+    NSDictionary *cfg = @{
+        @"productName":    detail.productName    ?: @"",
+        @"productAmount":  amount,
+        @"productLogoURL": detail.productLogo    ?: @""
+    };
+    MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:sheetType config:cfg];
+    self.currentReloanAlert = sheet;
 
     __weak typeof(self) weakSelf = self;
-    void (^confirmBlock)(void) = ^{
+    NSString *productId = [detail.productId copy];
+    NSString *loanAmount = [detail.loanAmount copy];
+    sheet.onConfirmTapped = ^{
         __strong typeof(weakSelf) strongSelf = weakSelf;
         if (!strongSelf) return;
-        [strongSelf startSeamlessOrderWithProductId:detail.productId selectedAmount:detail.loanAmount];
+        // 复借弹窗保持在界面上, 等系统定位权限弹窗出现时再 dismiss (与 259 一致)
+        [strongSelf startSeamlessOrderWithProductId:productId selectedAmount:loanAmount];
     };
-    void (^cancelBlock)(void) = ^{
+    sheet.onCancelTapped = ^{
         __strong typeof(weakSelf) strongSelf = weakSelf;
         if (!strongSelf) return;
         strongSelf.currentReloanAlert = nil;
@@ -112,9 +115,7 @@
             [strongSelf.delegate reloanFlowHandlerDidDismiss:strongSelf];
         }
     };
-    // 占位: UI 接入前直接走 dismiss 分支, 不自动 confirm
-    (void)confirmBlock;
-    cancelBlock();
+    [sheet show];
 }
 
 #pragma mark - Start Seamless Order

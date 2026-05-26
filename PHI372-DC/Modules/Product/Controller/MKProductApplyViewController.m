@@ -21,10 +21,12 @@
 #import "MKNetworkManager.h"
 #import "MKEncryptManager.h"
 #import "MKSeamlessOrderManager.h"
+#import "MKReloanFlowHandler.h"
+#import "MKLoginManager.h"
 #import <Masonry/Masonry.h>
 #import <SVProgressHUD/SVProgressHUD.h>
 
-@interface MKProductApplyViewController () <UITableViewDataSource, UITableViewDelegate, MKSeamlessOrderManagerDelegate>
+@interface MKProductApplyViewController () <UITableViewDataSource, UITableViewDelegate, MKSeamlessOrderManagerDelegate, MKReloanFlowHandlerDelegate>
 @property (nonatomic, strong) UITableView *tableView;
 @property (nonatomic, weak) MKLoanInfoCell *infoCell;
 
@@ -40,6 +42,12 @@
 
 /// 数据抓取 BottomSheet (通讯录上传期间显示, 进度动态更新)
 @property (nonatomic, strong, nullable) MKBottomSheetView *dataCaptureSheet;
+
+/// 复借流程
+@property (nonatomic, strong, nullable) MKReloanFlowHandler *reloanHandler;
+@property (nonatomic, assign) BOOL shouldShowReloanTipOnBack;
+@property (nonatomic, assign) BOOL hasShownReloanTipOnBack;
+@property (nonatomic, assign) BOOL isCheckingReloanTip;
 @end
 
 @implementation MKProductApplyViewController
@@ -75,6 +83,7 @@
     [super viewDidLoad];
     self.view.backgroundColor = kColorBackground;
     [self setupTableView];
+    [self checkReloanSwitchStatus];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -336,6 +345,7 @@
 
 - (void)seamlessOrderManager:(id)manager didUpdateContactUploadProgress:(NSInteger)progress {
     [SVProgressHUD dismiss];
+    [self.reloanHandler hideReloanTipAlert];
     if (!self.dataCaptureSheet) {
         self.dataCaptureSheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypeDataCapture config:nil];
         [self.dataCaptureSheet show];
@@ -365,6 +375,7 @@
     // 用户要求: 这类失败一律返回上层 (跟 cancel 一致)
     // 而"定位 1st 拒"走 silentlyStopProcessing(不发任何 delegate), 保留在 apply 页 — 不走这里
     [SVProgressHUD dismiss];
+    [self.reloanHandler hideReloanTipAlert];
     [self dismissDataCaptureSheet];
     [self.navigationController popViewControllerAnimated:YES];
 }
@@ -372,6 +383,7 @@
 }
 - (void)seamlessOrderManagerDidCancel:(id)manager {
     [SVProgressHUD dismiss];
+    [self.reloanHandler hideReloanTipAlert];
     [self dismissDataCaptureSheet];
     [self.navigationController popViewControllerAnimated:YES];
 }
@@ -388,6 +400,52 @@
         [self.dataCaptureSheet dismiss];
         self.dataCaptureSheet = nil;
     }
+}
+
+#pragma mark - Reloan Flow (返回拦截 → 复借弹窗)
+
+- (void)checkReloanSwitchStatus {
+    self.shouldShowReloanTipOnBack = NO;
+    self.hasShownReloanTipOnBack = NO;
+    if (![[MKLoginManager sharedManager] isLoggedIn]) return;
+
+    MKAppConfigModel *cfg = [MKAppConfigManager sharedManager].currentAppConfig;
+    if (![cfg.dynamicParameter.fjtip isEqualToString:@"on"]) return;
+
+    self.shouldShowReloanTipOnBack = YES;
+}
+
+- (void)onBackTapped {
+    // 已弹过 / 不应该弹 / 正在请求中 → 直接 pop
+    if (!self.shouldShowReloanTipOnBack || self.hasShownReloanTipOnBack || self.isCheckingReloanTip) {
+        [self.navigationController popViewControllerAnimated:YES];
+        return;
+    }
+    // 标记已尝试(无论网络结果如何, 不重复拦截)
+    self.hasShownReloanTipOnBack = YES;
+    self.isCheckingReloanTip = YES;
+
+    if (!self.reloanHandler) {
+        self.reloanHandler = [[MKReloanFlowHandler alloc] init];
+        self.reloanHandler.delegate = self;
+        self.reloanHandler.seamlessOrderDelegate = self;
+    }
+    NSString *productId = self.termData.productId;
+    [self.reloanHandler requestProductStateAndShowTipWithProductId:productId
+                                                         sheetType:MKBottomSheetTypeProductReloan];
+}
+
+#pragma mark - MKReloanFlowHandlerDelegate
+
+- (void)reloanFlowHandlerDidStartSeamlessOrder:(id)handler {
+    self.isCheckingReloanTip = NO;
+    // 复借弹窗保持显示, 等 SeamlessOrder 进 data capture 时由 didUpdateContactUploadProgress 处理 hide
+}
+
+- (void)reloanFlowHandlerDidDismiss:(id)handler {
+    self.isCheckingReloanTip = NO;
+    // 弹窗被关闭(用户点 X 或 接口无数据) → 完成原本的返回动作
+    [self.navigationController popViewControllerAnimated:YES];
 }
 
 @end

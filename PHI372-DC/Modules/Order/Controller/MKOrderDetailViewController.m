@@ -16,6 +16,9 @@
 #import "MKKYCBankCardEditViewController.h"
 #import "MKSeamlessOrderManager.h"
 #import "MKHomeViewController.h"
+#import "MKReloanFlowHandler.h"
+#import "MKAppConfigManager.h"
+#import "MKLoginManager.h"
 #import <Masonry/Masonry.h>
 #import <SVProgressHUD/SVProgressHUD.h>
 #import <SDWebImage/SDWebImage.h>
@@ -42,7 +45,7 @@ typedef struct {
     BOOL hasInfo;
 } MKDetailRowDef;
 
-@interface MKOrderDetailViewController () <MKSeamlessOrderManagerDelegate>
+@interface MKOrderDetailViewController () <MKSeamlessOrderManagerDelegate, MKReloanFlowHandlerDelegate>
 @property (nonatomic, copy) NSString *orderId;
 
 @property (nonatomic, strong, nullable) MKOrderDetailModel       *orderDetailModel;
@@ -67,6 +70,9 @@ typedef struct {
 /// Defer 流程中(显示 connect 用 Deferment 标题), Repay 流程则用 Repayment
 @property (nonatomic, assign) BOOL isCurrentActionExtension;
 @property (nonatomic, strong, nullable) MKBottomSheetView *dataCaptureSheet;
+
+/// 复借流程处理器 (lazy)
+@property (nonatomic, strong, nullable) MKReloanFlowHandler *reloanHandler;
 @end
 
 @implementation MKOrderDetailViewController
@@ -388,6 +394,41 @@ typedef struct {
 
     [self.view setNeedsLayout];
     [self relayoutBody];
+
+    // 渲染完成后触发复借检查 (status==32 待提现内部跳过)
+    [self checkReloanSwitchStatusAndShowTipOnEnter];
+}
+
+#pragma mark - Reloan Flow (订单详情进入时弹复借)
+
+- (void)checkReloanSwitchStatusAndShowTipOnEnter {
+    NSInteger status = self.orderDetailModel.orderDetail.orderStatus;
+    if (status == 32) return;   // 待提现态不弹复借
+    if (![[MKLoginManager sharedManager] isLoggedIn]) return;
+
+    MKAppConfigModel *cfg = [MKAppConfigManager sharedManager].currentAppConfig;
+    if (![cfg.dynamicParameter.fjtip isEqualToString:@"on"]) return;
+
+    if (!self.reloanHandler) {
+        self.reloanHandler = [[MKReloanFlowHandler alloc] init];
+        self.reloanHandler.delegate = self;
+        self.reloanHandler.seamlessOrderDelegate = self;
+    }
+    NSString *productId = self.orderDetailModel.product.productId.length > 0
+                            ? self.orderDetailModel.product.productId
+                            : self.productId;
+    [self.reloanHandler requestProductStateAndShowTipWithProductId:productId
+                                                         sheetType:MKBottomSheetTypeOrderReloan];
+}
+
+#pragma mark - MKReloanFlowHandlerDelegate
+
+- (void)reloanFlowHandlerDidStartSeamlessOrder:(id)handler {
+    // 复借弹窗保持在界面上, 等系统定位权限弹窗弹出 / 进 data capture 时再 hide
+}
+
+- (void)reloanFlowHandlerDidDismiss:(id)handler {
+    // 用户关闭了复借弹窗 — 留在当前页, 无需额外动作
 }
 
 - (NSString *)displayTermFromOrderInfo:(MKOrderDetailInfo *)info {
@@ -880,6 +921,7 @@ static BOOL MKHasPositiveAmount(NSString *raw) {
 
 - (void)seamlessOrderManager:(id)manager didUpdateContactUploadProgress:(NSInteger)progress {
     [SVProgressHUD dismiss];
+    [self.reloanHandler hideReloanTipAlert];
     if (!self.dataCaptureSheet) {
         self.dataCaptureSheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypeDataCapture config:nil];
         [self.dataCaptureSheet show];
@@ -908,6 +950,7 @@ static BOOL MKHasPositiveAmount(NSString *raw) {
 
 - (void)seamlessOrderManager:(id)manager didFailWithError:(NSError *)error {
     [SVProgressHUD dismiss];
+    [self.reloanHandler hideReloanTipAlert];
     [self dismissDataCaptureSheet];
 }
 
@@ -916,6 +959,7 @@ static BOOL MKHasPositiveAmount(NSString *raw) {
 
 - (void)seamlessOrderManagerDidCancel:(id)manager {
     [SVProgressHUD dismiss];
+    [self.reloanHandler hideReloanTipAlert];
     [self dismissDataCaptureSheet];
 }
 
@@ -925,6 +969,7 @@ static BOOL MKHasPositiveAmount(NSString *raw) {
 
 - (void)seamlessOrderManagerDidCancelContactsPermission:(id)manager {
     [SVProgressHUD dismiss];
+    [self.reloanHandler hideReloanTipAlert];
     [self dismissDataCaptureSheet];
 }
 
