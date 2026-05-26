@@ -43,6 +43,7 @@ typedef NS_ENUM(NSInteger, MKBottomSheetType) {
     // 下单流程
     MKBottomSheetTypeDataCapture,                   // opiuJ 数据抓取 (通讯录上传进度)
     MKBottomSheetTypeApplySuccess,                  // Q5IzQ 产品申请-申请成功-老客
+    MKBottomSheetTypeLoanDisbursedSuccess,          // 数据抓取完成 — 放款成功
 };
 
 @interface MKBottomSheetView : UIView

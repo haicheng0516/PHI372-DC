@@ -15,6 +15,7 @@
 #import "MKWebViewViewController.h"
 #import "MKKYCBankCardEditViewController.h"
 #import "MKSeamlessOrderManager.h"
+#import "MKHomeViewController.h"
 #import <Masonry/Masonry.h>
 #import <SVProgressHUD/SVProgressHUD.h>
 #import <SDWebImage/SDWebImage.h>
@@ -698,9 +699,24 @@ static BOOL MKHasPositiveAmount(NSString *raw) {
     __weak typeof(self) wself = self;
     MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypeWithdrawSuccess config:nil];
     sheet.onConfirmTapped = ^{
-        [wself.navigationController popToRootViewControllerAnimated:YES];
+        // sheet dismiss 动画 0.3s 后再 pop, 优先回 Home, fallback 回根
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)),
+                       dispatch_get_main_queue(), ^{
+            [wself popBackToHome];
+        });
     };
     [sheet show];
+}
+
+- (void)popBackToHome {
+    if (!self.navigationController) return;
+    for (UIViewController *vc in self.navigationController.viewControllers) {
+        if ([vc isKindOfClass:[MKHomeViewController class]]) {
+            [self.navigationController popToViewController:vc animated:YES];
+            return;
+        }
+    }
+    [self.navigationController popToRootViewControllerAnimated:YES];
 }
 
 #pragma mark - Repay / Defer (status 60/61/63)
@@ -803,34 +819,53 @@ static BOOL MKHasPositiveAmount(NSString *raw) {
 #pragma mark - Repayment Plan (yellow bar)
 
 - (void)onRepayPlanTapped {
-    NSArray<NSDictionary *> *raw = self.orderDetailModel.orderDetail.productTermItemList;
-    if (raw.count == 0) {
-        [SVProgressHUD showInfoWithStatus:@"No repayment plan available"];
-        return;
-    }
-
     NSDateFormatter *isoFmt = [[NSDateFormatter alloc] init];
     isoFmt.dateFormat = @"yyyy-MM-dd";
     NSDateFormatter *prettyFmt = [[NSDateFormatter alloc] init];
     prettyFmt.dateFormat = @"MMM dd, yyyy";
     prettyFmt.locale = [NSLocale localeWithLocaleIdentifier:@"en_US"];
 
+    NSString *(^money)(id) = ^(id v){
+        NSString *s = [v isKindOfClass:[NSString class]] ? v : ([v isKindOfClass:[NSNumber class]] ? [v stringValue] : @"");
+        return s.length > 0 ? s : @"--";
+    };
+    NSString *(^prettyDate)(NSString *) = ^(NSString *raw){
+        if (raw.length == 0) return (NSString *)@"--";
+        NSDate *d = [isoFmt dateFromString:raw];
+        return d ? [prettyFmt stringFromDate:d] : raw;
+    };
+
     NSMutableArray *plans = [NSMutableArray array];
-    for (NSDictionary *item in raw) {
-        if (![item isKindOfClass:[NSDictionary class]]) continue;
-        NSString *dateStr = [item[@"expirationDate"] isKindOfClass:[NSString class]] ? item[@"expirationDate"] : @"";
-        NSDate *d = [isoFmt dateFromString:dateStr];
-        if (d) dateStr = [prettyFmt stringFromDate:d];
-        NSString *(^money)(id) = ^(id v){
-            NSString *s = [v isKindOfClass:[NSString class]] ? v : ([v isKindOfClass:[NSNumber class]] ? [v stringValue] : @"");
-            return s.length > 0 ? s : @"--";
-        };
-        [plans addObject:@{
-            @"date":      dateStr.length > 0 ? dateStr : @"--",
-            @"amount":    money(item[@"repaymentAmount"]),
-            @"principal": money(item[@"principalAmountDue"]),
-            @"interest":  money(item[@"interestAmountDue"]),
-        }];
+
+    // status==32 待提现: 优先用 withdrawnDetailModel 选中的 term, 反映用户选的金额/期限组合
+    MKWithdrawnTermDetail *selectedTerm = [self selectedTermDetail];
+    if (selectedTerm.productTermItemList.count > 0) {
+        for (MKWithdrawnTermItem *item in selectedTerm.productTermItemList) {
+            [plans addObject:@{
+                @"date":      prettyDate(item.expirationDate),
+                @"amount":    money(item.repaymentAmount),
+                @"principal": money(item.principalAmountDue),
+                @"interest":  money(item.interestAmountDue),
+            }];
+        }
+    } else {
+        // fallback: 用订单详情自带的 productTermItemList
+        NSArray<NSDictionary *> *raw = self.orderDetailModel.orderDetail.productTermItemList;
+        for (NSDictionary *item in raw) {
+            if (![item isKindOfClass:[NSDictionary class]]) continue;
+            NSString *dateStr = [item[@"expirationDate"] isKindOfClass:[NSString class]] ? item[@"expirationDate"] : @"";
+            [plans addObject:@{
+                @"date":      prettyDate(dateStr),
+                @"amount":    money(item[@"repaymentAmount"]),
+                @"principal": money(item[@"principalAmountDue"]),
+                @"interest":  money(item[@"interestAmountDue"]),
+            }];
+        }
+    }
+
+    if (plans.count == 0) {
+        [SVProgressHUD showInfoWithStatus:@"No repayment plan available"];
+        return;
     }
 
     MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypeRepaymentPlan
@@ -860,10 +895,13 @@ static BOOL MKHasPositiveAmount(NSString *raw) {
     [SVProgressHUD dismiss];
     [self dismissDataCaptureSheet];
     __weak typeof(self) wself = self;
-    MKBottomSheetView *succ = [MKBottomSheetView sheetWithType:MKBottomSheetTypeApplySuccess config:nil];
+    MKBottomSheetView *succ = [MKBottomSheetView sheetWithType:MKBottomSheetTypeLoanDisbursedSuccess config:nil];
     succ.onConfirmTapped = ^{
-        // 抓取完成后刷新详情, 让按钮/UI 按新 status 重新渲染
-        [wself loadOrderDetail];
+        // sheet dismiss 动画 0.4s 后 pop 回上一页
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)),
+                       dispatch_get_main_queue(), ^{
+            [wself.navigationController popViewControllerAnimated:YES];
+        });
     };
     [succ show];
 }

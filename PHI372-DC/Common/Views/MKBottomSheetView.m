@@ -186,6 +186,13 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
                          body:@"Your application is under review. Once approved, the money will be credited to your bank account."
                       confirm:@"Confirm"]; break;
 
+        case MKBottomSheetTypeLoanDisbursedSuccess:
+            // 数据抓取完成后 — 放款成功
+            [self buildResult:YES
+                        title:@"Success!"
+                         body:@"Loan disbursed successfully and will be received soon."
+                      confirm:@"Confirm"]; break;
+
         case MKBottomSheetTypeAccountDeleteSuccess:
             // Pencil: "Account canceled successfully" body, title "Success!"
             [self buildResult:YES title:@"Success!" body:@"Account canceled successfully" confirm:@"Confirm"]; break;
