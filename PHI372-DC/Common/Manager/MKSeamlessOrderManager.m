@@ -43,6 +43,9 @@
 @property (nonatomic, assign) BOOL isWaitingForContactsPermission;
 @property (nonatomic, assign) BOOL hasCalledReadyAPI;
 
+/// YES 时跳过下单环节, submitOrder 命中即直接走 startDataCaptureWithOrderId
+@property (nonatomic, assign) BOOL isDataCaptureOnly;
+
 @end
 
 @implementation MKSeamlessOrderManager
@@ -86,8 +89,31 @@
     self.isWaitingForLocationPermission = NO;
     self.isWaitingForContactsPermission = NO;
     self.isLocationUpdating = NO;
+    self.isDataCaptureOnly = NO;
 
     self.termData = [[MKProductTermDataModel alloc] initWithDictionary:params.termResponseData];
+
+    [self updateState:MKSeamlessOrderStateLoadingConfig];
+    [self loadAppConfig];
+    return YES;
+}
+
+- (BOOL)startDataCaptureOnlyWithOrderId:(NSString *)orderId {
+    if (self.isProcessing) return NO;
+    if (orderId.length == 0) return NO;
+
+    self.isProcessing = YES;
+    self.currentParams = nil;
+    self.currentOrderId = orderId;
+    self.latitude = @"-360";
+    self.longitude = @"-360";
+    self.hasCalledOrderAPI = YES;   // 跳过下单, 视为已下过单
+    self.hasCalledReadyAPI = NO;
+    self.hasLocationTimedOut = NO;
+    self.isWaitingForLocationPermission = NO;
+    self.isWaitingForContactsPermission = NO;
+    self.isLocationUpdating = NO;
+    self.isDataCaptureOnly = YES;
 
     [self updateState:MKSeamlessOrderStateLoadingConfig];
     [self loadAppConfig];
@@ -124,6 +150,7 @@
     self.isForceCaptureFlow = NO;
     self.isWaitingForLocationPermission = NO;
     self.isWaitingForContactsPermission = NO;
+    self.isDataCaptureOnly = NO;
     self.latitude = @"-360";
     self.longitude = @"-360";
     if (self.locationManager) {
@@ -364,6 +391,12 @@
 #pragma mark - Step 3: Submit Order
 
 - (void)submitOrder {
+    // 数据抓取模式: 跳过下单, 复用现有 orderId 直接进设备/通讯录上传
+    if (self.isDataCaptureOnly) {
+        [self startDataCaptureWithOrderId:self.currentOrderId];
+        return;
+    }
+
     if (self.hasCalledOrderAPI) return;
     self.hasCalledOrderAPI = YES;
 

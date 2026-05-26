@@ -58,6 +58,11 @@ typedef NS_ENUM(NSInteger, MKSeamlessOrderState) {
 
 + (instancetype)sharedManager;
 - (BOOL)startSeamlessOrderWithParams:(MKSeamlessOrderParams *)params;
+
+/// 数据抓取专用入口: 不走下单, 复用 loadConfig → location → device → contacts → ready 流程.
+/// 用于订单详情页 status 10/20 (待抓取) "Submit Information" 按钮.
+- (BOOL)startDataCaptureOnlyWithOrderId:(NSString *)orderId;
+
 - (void)cancel;
 - (void)reset;
 

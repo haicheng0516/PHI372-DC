@@ -12,6 +12,9 @@
 #import "MKRepaymentPlanButton.h"
 #import "MKOrderDetailBottomBar.h"
 #import "MKBottomSheetView.h"
+#import "MKWebViewViewController.h"
+#import "MKKYCBankCardEditViewController.h"
+#import "MKSeamlessOrderManager.h"
 #import <Masonry/Masonry.h>
 #import <SVProgressHUD/SVProgressHUD.h>
 #import <SDWebImage/SDWebImage.h>
@@ -38,7 +41,7 @@ typedef struct {
     BOOL hasInfo;
 } MKDetailRowDef;
 
-@interface MKOrderDetailViewController ()
+@interface MKOrderDetailViewController () <MKSeamlessOrderManagerDelegate>
 @property (nonatomic, copy) NSString *orderId;
 
 @property (nonatomic, strong, nullable) MKOrderDetailModel       *orderDetailModel;
@@ -59,6 +62,10 @@ typedef struct {
 
 @property (nonatomic, strong) UILabel *bottomMessageLabel;
 @property (nonatomic, strong) MKOrderDetailBottomBar *bottomBar;
+
+/// Defer 流程中(显示 connect 用 Deferment 标题), Repay 流程则用 Repayment
+@property (nonatomic, assign) BOOL isCurrentActionExtension;
+@property (nonatomic, strong, nullable) MKBottomSheetView *dataCaptureSheet;
 @end
 
 @implementation MKOrderDetailViewController
@@ -639,29 +646,255 @@ static BOOL MKHasPositiveAmount(NSString *raw) {
     [self performDefer];
 }
 
+#pragma mark - Withdraw (status 32)
+
 - (void)performWithdraw {
-    [SVProgressHUD showInfoWithStatus:@"Withdraw — TODO"];
+    if (self.orderId.length == 0) {
+        [SVProgressHUD showErrorWithStatus:@"Order ID is missing"];
+        return;
+    }
+
+    NSString *loanAmount = @"";
+    NSString *loanTerm = @"";
+    if (self.withdrawnDetailModel) {
+        MKWithdrawnAmountDetail *amount = [self selectedAmountDetail];
+        if (amount) loanAmount = amount.loanAmount ?: @"";
+        MKWithdrawnTermDetail *term = [self selectedTermDetail];
+        if (term) loanTerm = [NSString stringWithFormat:@"%ld", (long)term.loanTerm];
+    }
+
+    [SVProgressHUD showWithStatus:@"Processing..."];
+
+    NSDictionary *signData = @{ @"orderId": self.orderId };
+    NSDictionary *reqData  = @{ @"orderId": self.orderId,
+                                @"loanAmount": loanAmount,
+                                @"loanTerm": loanTerm };
+    NSDictionary *body = [[MKEncryptManager sharedManager] generateRequestBodyWithSignData:signData
+                                                                                requestData:reqData];
+
+    __weak typeof(self) wself = self;
+    [[MKNetworkManager sharedManager] post:@"/app/v3/order/apply/withdrawal"
+                                    params:body
+                                   success:^(id resp) {
+        [SVProgressHUD dismiss];
+        if (![resp isKindOfClass:[NSDictionary class]]) {
+            [SVProgressHUD showErrorWithStatus:@"Invalid response"];
+            return;
+        }
+        NSInteger code = [resp[@"resultCode"] integerValue];
+        if (code == 200) {
+            [wself showWithdrawSuccessSheet];
+        } else {
+            NSString *msg = resp[@"resultMsg"] ?: @"Withdrawal failed";
+            [SVProgressHUD showErrorWithStatus:msg];
+        }
+    } failure:^(NSError *error) {
+        [SVProgressHUD dismiss];
+        [SVProgressHUD showErrorWithStatus:error.localizedDescription ?: @"Withdrawal failed"];
+    }];
 }
 
+- (void)showWithdrawSuccessSheet {
+    __weak typeof(self) wself = self;
+    MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypeWithdrawSuccess config:nil];
+    sheet.onConfirmTapped = ^{
+        [wself.navigationController popToRootViewControllerAnimated:YES];
+    };
+    [sheet show];
+}
+
+#pragma mark - Repay / Defer (status 60/61/63)
+
 - (void)performRepay {
-    [SVProgressHUD showInfoWithStatus:@"Repay — TODO"];
+    self.isCurrentActionExtension = NO;
+    [self requestOrderConnectWithPath:@"/app/v3/order/repay/connect" errorPrefix:@"Repay"];
 }
 
 - (void)performDefer {
-    [SVProgressHUD showInfoWithStatus:@"Defer — TODO"];
+    self.isCurrentActionExtension = YES;
+    [self requestOrderConnectWithPath:@"/app/v3/order/repay/extension" errorPrefix:@"Extension"];
 }
+
+- (void)requestOrderConnectWithPath:(NSString *)path errorPrefix:(NSString *)errorPrefix {
+    NSString *oid = self.orderDetailModel.orderDetail.orderId.length > 0
+                      ? self.orderDetailModel.orderDetail.orderId : self.orderId;
+    if (oid.length == 0) {
+        [SVProgressHUD showErrorWithStatus:@"Order information is not available"];
+        return;
+    }
+
+    NSDictionary *signData = @{ @"orderId": oid };
+    NSDictionary *reqData  = @{ @"orderId": oid, @"periodNoList": @[@1] };
+    NSDictionary *body = [[MKEncryptManager sharedManager] generateRequestBodyWithSignData:signData
+                                                                                requestData:reqData];
+
+    [SVProgressHUD showWithStatus:@"Loading..."];
+
+    __weak typeof(self) wself = self;
+    [[MKNetworkManager sharedManager] post:path
+                                    params:body
+                                   success:^(id resp) {
+        [SVProgressHUD dismiss];
+        if (![resp isKindOfClass:[NSDictionary class]]) {
+            [SVProgressHUD showErrorWithStatus:@"Invalid response"];
+            return;
+        }
+        NSInteger code = [resp[@"resultCode"] integerValue];
+        NSString *msg = resp[@"resultMsg"] ?: @"";
+        if (code != 200) {
+            NSString *out = msg.length > 0 ? msg : [NSString stringWithFormat:@"%@ request failed", errorPrefix];
+            [SVProgressHUD showErrorWithStatus:out];
+            return;
+        }
+        NSDictionary *data = resp[@"data"];
+        NSString *connect = [data isKindOfClass:[NSDictionary class]] ? data[@"connect"] : nil;
+        if (connect.length == 0) {
+            [SVProgressHUD showErrorWithStatus:[NSString stringWithFormat:@"%@ link is empty", errorPrefix]];
+            return;
+        }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [wself openConnectURL:connect];
+        });
+    } failure:^(NSError *error) {
+        [SVProgressHUD dismiss];
+        NSString *fb = error.localizedDescription.length > 0
+                          ? error.localizedDescription
+                          : [NSString stringWithFormat:@"%@ request failed", errorPrefix];
+        [SVProgressHUD showErrorWithStatus:fb];
+    }];
+}
+
+- (void)openConnectURL:(NSString *)urlString {
+    if (![NSURL URLWithString:urlString]) {
+        [SVProgressHUD showErrorWithStatus:@"Invalid URL"];
+        return;
+    }
+    NSString *title = self.isCurrentActionExtension ? @"Deferment" : @"Repayment";
+    MKWebViewViewController *web = [[MKWebViewViewController alloc] initWithURL:urlString title:title];
+    [self.navigationController pushViewController:web animated:YES];
+}
+
+#pragma mark - Modify Bank Card (status 36)
 
 - (void)performModifyBankCard {
-    [SVProgressHUD showInfoWithStatus:@"Modify Bank Card — TODO"];
+    MKOrderDetailBankCard *bc = self.orderDetailModel.bankCard;
+    if (!bc || bc.bindId == 0) {
+        [SVProgressHUD showErrorWithStatus:@"Bank card information not available"];
+        return;
+    }
+    MKKYCBankCardEditViewController *vc = [[MKKYCBankCardEditViewController alloc] init];
+    vc.bankCardBindId = bc.bindId;
+    [self.navigationController pushViewController:vc animated:YES];
 }
+
+#pragma mark - Data Capture (status 10/20)
 
 - (void)performDataCapture {
-    // 待抓取数据(10/20): 在当页直接调起数据抓取流程
-    [SVProgressHUD showInfoWithStatus:@"Submit Information — TODO (当页数据抓取)"];
+    if (self.orderId.length == 0) {
+        [SVProgressHUD showErrorWithStatus:@"Order ID is missing"];
+        return;
+    }
+    MKSeamlessOrderManager *mgr = [MKSeamlessOrderManager sharedManager];
+    if (mgr.isProcessing) return;
+    mgr.delegate = self;
+    [mgr startDataCaptureOnlyWithOrderId:self.orderId];
 }
 
+#pragma mark - Repayment Plan (yellow bar)
+
 - (void)onRepayPlanTapped {
-    [SVProgressHUD showInfoWithStatus:@"Repayment plan — TODO"];
+    NSArray<NSDictionary *> *raw = self.orderDetailModel.orderDetail.productTermItemList;
+    if (raw.count == 0) {
+        [SVProgressHUD showInfoWithStatus:@"No repayment plan available"];
+        return;
+    }
+
+    NSDateFormatter *isoFmt = [[NSDateFormatter alloc] init];
+    isoFmt.dateFormat = @"yyyy-MM-dd";
+    NSDateFormatter *prettyFmt = [[NSDateFormatter alloc] init];
+    prettyFmt.dateFormat = @"MMM dd, yyyy";
+    prettyFmt.locale = [NSLocale localeWithLocaleIdentifier:@"en_US"];
+
+    NSMutableArray *plans = [NSMutableArray array];
+    for (NSDictionary *item in raw) {
+        if (![item isKindOfClass:[NSDictionary class]]) continue;
+        NSString *dateStr = [item[@"expirationDate"] isKindOfClass:[NSString class]] ? item[@"expirationDate"] : @"";
+        NSDate *d = [isoFmt dateFromString:dateStr];
+        if (d) dateStr = [prettyFmt stringFromDate:d];
+        NSString *(^money)(id) = ^(id v){
+            NSString *s = [v isKindOfClass:[NSString class]] ? v : ([v isKindOfClass:[NSNumber class]] ? [v stringValue] : @"");
+            return s.length > 0 ? s : @"--";
+        };
+        [plans addObject:@{
+            @"date":      dateStr.length > 0 ? dateStr : @"--",
+            @"amount":    money(item[@"repaymentAmount"]),
+            @"principal": money(item[@"principalAmountDue"]),
+            @"interest":  money(item[@"interestAmountDue"]),
+        }];
+    }
+
+    MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypeRepaymentPlan
+                                                         config:@{ @"plans": plans }];
+    [sheet show];
+}
+
+#pragma mark - MKSeamlessOrderManagerDelegate (data capture only)
+
+- (void)seamlessOrderManager:(id)manager didSubmitOrderSuccess:(NSString *)orderId {
+}
+
+- (void)seamlessOrderManager:(id)manager didUpdateContactUploadProgress:(NSInteger)progress {
+    [SVProgressHUD dismiss];
+    if (!self.dataCaptureSheet) {
+        self.dataCaptureSheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypeDataCapture config:nil];
+        [self.dataCaptureSheet show];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.dataCaptureSheet setDataCaptureProgress:progress animated:NO];
+        });
+    } else {
+        [self.dataCaptureSheet setDataCaptureProgress:progress animated:YES];
+    }
+}
+
+- (void)seamlessOrderManager:(id)manager didCompleteWithOrderId:(NSString *)orderId {
+    [SVProgressHUD dismiss];
+    [self dismissDataCaptureSheet];
+    __weak typeof(self) wself = self;
+    MKBottomSheetView *succ = [MKBottomSheetView sheetWithType:MKBottomSheetTypeApplySuccess config:nil];
+    succ.onConfirmTapped = ^{
+        // 抓取完成后刷新详情, 让按钮/UI 按新 status 重新渲染
+        [wself loadOrderDetail];
+    };
+    [succ show];
+}
+
+- (void)seamlessOrderManager:(id)manager didFailWithError:(NSError *)error {
+    [SVProgressHUD dismiss];
+    [self dismissDataCaptureSheet];
+}
+
+- (void)seamlessOrderManager:(id)manager shouldShowMessage:(NSString *)message {
+}
+
+- (void)seamlessOrderManagerDidCancel:(id)manager {
+    [SVProgressHUD dismiss];
+    [self dismissDataCaptureSheet];
+}
+
+- (void)seamlessOrderManagerDidCancelLocationPermission:(id)manager {
+    [SVProgressHUD dismiss];
+}
+
+- (void)seamlessOrderManagerDidCancelContactsPermission:(id)manager {
+    [SVProgressHUD dismiss];
+    [self dismissDataCaptureSheet];
+}
+
+- (void)dismissDataCaptureSheet {
+    if (self.dataCaptureSheet) {
+        [self.dataCaptureSheet dismiss];
+        self.dataCaptureSheet = nil;
+    }
 }
 
 @end
