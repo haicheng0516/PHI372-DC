@@ -5,7 +5,9 @@
 
 #import "SceneDelegate.h"
 #import "MKNavigationController.h"
-#import "MKLaunchViewController.h"
+#import "MKLoginManager.h"
+#import "MKSignInViewController.h"
+#import "MKHomeViewController.h"
 
 @implementation SceneDelegate
 
@@ -15,10 +17,25 @@
 
     self.window = [[UIWindow alloc] initWithWindowScene:winScene];
 
-    // 启动总是先进 Launch, Launch 内部 1.5s 后根据登录态切到 Login 或 Home
-    MKLaunchViewController *launch = [[MKLaunchViewController alloc] init];
-    MKNavigationController *nav = [[MKNavigationController alloc] initWithRootViewController:launch];
-    self.window.rootViewController = nav;
+    // LaunchScreen.storyboard 显示 Se_bg + logo + APP name 至 didFinishLaunching 完成,
+    // 此时根据登录态直接装载首页或登录页 — 不需要再走中间 splash VC
+    UIViewController *root = nil;
+    NSString *dbg = [[NSUserDefaults standardUserDefaults] stringForKey:@"MK.DebugRoute"];
+    if (dbg.length) {
+        Class c = NSClassFromString(dbg);
+        if (c) {
+            MKNavigationController *nav = [[MKNavigationController alloc] initWithRootViewController:[MKHomeViewController new]];
+            [nav pushViewController:[c new] animated:NO];
+            root = nav;
+        }
+    }
+    if (!root) {
+        UIViewController *first = [[MKLoginManager sharedManager] isLoggedIn]
+            ? (UIViewController *)[MKHomeViewController new]
+            : (UIViewController *)[MKSignInViewController new];
+        root = [[MKNavigationController alloc] initWithRootViewController:first];
+    }
+    self.window.rootViewController = root;
     [self.window makeKeyAndVisible];
 }
 

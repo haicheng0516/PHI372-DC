@@ -2,6 +2,9 @@
 //  MKDialogGalleryViewController.m
 //
 
+// 仅 DEBUG 构建编译; Release(App Store)构建中整文件为空, 类不进二进制。
+#if DEBUG
+
 #import "MKDialogGalleryViewController.h"
 #import "MKConstants.h"
 #import "MKBottomSheetView.h"
@@ -112,3 +115,5 @@
 }
 
 @end
+
+#endif

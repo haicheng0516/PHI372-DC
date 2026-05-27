@@ -23,6 +23,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, nullable) NSString *agreementHref;
 @property (nonatomic, copy, nullable) NSString *appEmail;
 @property (nonatomic, copy, nullable) NSString *officialWebsiteUrl;
+/// 好评引导开关: "0"-关 / "1"-全部展示 / "2"-仅老客展示(nil/默认按全部展示)
+@property (nonatomic, copy, nullable) NSString *feedbackGuidance;
 
 + (instancetype)modelWithDictionary:(NSDictionary *)dict;
 

@@ -23,6 +23,7 @@
 #import "MKSeamlessOrderManager.h"
 #import "MKReloanFlowHandler.h"
 #import "MKLoginManager.h"
+#import "MKRatingPromptManager.h"
 #import <Masonry/Masonry.h>
 #import <SVProgressHUD/SVProgressHUD.h>
 
@@ -361,6 +362,7 @@
 - (void)seamlessOrderManager:(id)manager didCompleteWithOrderId:(NSString *)orderId {
     [SVProgressHUD dismiss];
     [self dismissDataCaptureSheet];
+    [MKRatingPromptManager noteOrderCompleted];   // 首单标志, 返回首页后弹好评引导
     __weak typeof(self) wself = self;
     MKBottomSheetView *succ = [MKBottomSheetView sheetWithType:MKBottomSheetTypeApplySuccess config:nil];
     // Confirm: 返回上一页
@@ -371,28 +373,53 @@
 }
 
 - (void)seamlessOrderManager:(id)manager didFailWithError:(NSError *)error {
-    // didFailWithError 由"通讯录系统弹窗 1st 拒"、"订单接口失败"、"定位回调失败"等触发
-    // 用户要求: 这类失败一律返回上层 (跟 cancel 一致)
-    // 而"定位 1st 拒"走 silentlyStopProcessing(不发任何 delegate), 保留在 apply 页 — 不走这里
     [SVProgressHUD dismiss];
     [self.reloanHandler hideReloanTipAlert];
     [self dismissDataCaptureSheet];
-    [self.navigationController popViewControllerAnimated:YES];
+
+    // 通讯录权限失败(系统弹 Don't Allow / iOS18 Limited / 未知状态) — 订单已下, 回上层页
+    // 其他失败(定位/订单接口/网络) — 留在当前页, 与 259 ProductApplication L1679-1694 一致
+    NSString *desc = error.localizedDescription ?: @"";
+    if ([desc hasPrefix:@"Contacts"]) {
+        [[NSNotificationCenter defaultCenter] postNotificationName:MKSeamlessOrderDataCaptureCompletedNotification object:nil];
+        [self.navigationController popViewControllerAnimated:YES];
+    }
 }
 - (void)seamlessOrderManager:(id)manager shouldShowMessage:(NSString *)message {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [SVProgressHUD dismiss];
+        if (message.length > 0 && [message rangeOfString:@"location" options:NSCaseInsensitiveSearch].location != NSNotFound) return;
+        if (message.length > 0) [SVProgressHUD showInfoWithStatus:message];
+    });
 }
+// 对齐 259 ProductApplicationController L1727-1751
 - (void)seamlessOrderManagerDidCancel:(id)manager {
     [SVProgressHUD dismiss];
     [self.reloanHandler hideReloanTipAlert];
     [self dismissDataCaptureSheet];
+    [[NSNotificationCenter defaultCenter] postNotificationName:MKSeamlessOrderDataCaptureCompletedNotification object:nil];
     [self.navigationController popViewControllerAnimated:YES];
 }
-- (void)seamlessOrderManagerDidCancelLocationPermission:(id)manager {
-    [SVProgressHUD dismiss];
+- (void)seamlessOrderManagerWillShowSystemLocationPermissionAlert:(id)manager {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [SVProgressHUD dismiss];
+    });
 }
+- (void)seamlessOrderManagerDidCancelLocationPermission:(id)manager {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [SVProgressHUD dismiss];
+        [self dismissDataCaptureSheet];
+    });
+}
+// 对齐 259 ProductApplicationController L1767-1791
 - (void)seamlessOrderManagerDidCancelContactsPermission:(id)manager {
-    [SVProgressHUD dismiss];
-    [self dismissDataCaptureSheet];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [SVProgressHUD dismiss];
+        [self.reloanHandler hideReloanTipAlert];
+        [self dismissDataCaptureSheet];
+        [[NSNotificationCenter defaultCenter] postNotificationName:MKSeamlessOrderDataCaptureCompletedNotification object:nil];
+        [self.navigationController popViewControllerAnimated:YES];
+    });
 }
 
 - (void)dismissDataCaptureSheet {

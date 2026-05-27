@@ -28,6 +28,7 @@
     m.agreementHref = [dict[@"agreementHref"] isKindOfClass:[NSString class]] ? dict[@"agreementHref"] : nil;
     m.appEmail = [dict[@"appEmail"] isKindOfClass:[NSString class]] ? dict[@"appEmail"] : nil;
     m.officialWebsiteUrl = [dict[@"officialWebsiteUrl"] isKindOfClass:[NSString class]] ? dict[@"officialWebsiteUrl"] : nil;
+    m.feedbackGuidance = [dict[@"feedbackGuidance"] isKindOfClass:[NSString class]] ? dict[@"feedbackGuidance"] : nil;
     return m;
 }
 @end

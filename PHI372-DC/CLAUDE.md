@@ -5,11 +5,15 @@ App 源码根目录。负责生命周期 + 全局资源 + 模块装配。
 ## 启动链路
 
 ```
-main.m → AppDelegate → SceneDelegate
-       → MKNavigationController (Common/Base)
-       → MKLaunchViewController (Modules/Launch)
-       → 视登录态推 Login 或 Home
+main.m → AppDelegate
+       → LaunchScreen.storyboard (系统启动屏: Se_bg 全屏 + 右下角 logo + APP name)
+       → SceneDelegate.willConnectToSession
+       → 视登录态直接装载 MKSignInViewController 或 MKHomeViewController
+         (无中间 splash VC, 不靠定时器跳转)
 ```
+
+调试入口(可选): `defaults write yanwenbo.developer.app MK.DebugRoute -string "VCClassName"` —
+SceneDelegate 检测到 `MK.DebugRoute` 时以 Home 为锚 push 指定 VC。
 
 ## 约定
 
@@ -23,10 +27,16 @@ main.m → AppDelegate → SceneDelegate
 
 | 类型 | 位置 |
 |---|---|
-| 启动配置 | `Info.plist`, `AppDelegate.*`, `SceneDelegate.*` |
+| 启动配置 | `Info.plist`, `AppDelegate.*`, `SceneDelegate.*`, `Base.lproj/LaunchScreen.storyboard` |
 | 图片 | `Assets.xcassets/<name>.imageset/` |
 | 通用基础 | `Common/`(详见 [Common/CLAUDE.md](./Common/CLAUDE.md)) |
 | 业务功能 | `Modules/<Feature>/`(详见 [Modules/CLAUDE.md](./Modules/CLAUDE.md)) |
+
+## 启动屏(LaunchScreen.storyboard)
+
+- 系统启动屏走 `Base.lproj/LaunchScreen.storyboard`(`INFOPLIST_KEY_UILaunchStoryboardName=LaunchScreen`)
+- 内容: `Se_bg` 全屏 + 右下区 50×50 白色圆角 logo 占位 + 24pt 白色 "APP name"
+- **不要为启动屏写 VC**;系统加载完直接交给 SceneDelegate 决定下一屏
 
 ## Xcode 16 同步文件夹组
 

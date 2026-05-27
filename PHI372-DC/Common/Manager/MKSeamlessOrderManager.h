@@ -6,6 +6,10 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+/// 数据采集 / 复借流程结束通知 — 由 Order/Product 在复借成功 / Cancel 后 post,
+/// Home VC 收到后刷新 suphome + 产品列表
+extern NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification;
+
 typedef NS_ENUM(NSInteger, MKSeamlessOrderState) {
     MKSeamlessOrderStateIdle = 0,
     MKSeamlessOrderStateLoadingConfig,

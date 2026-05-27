@@ -19,6 +19,7 @@
 #import "MKReloanFlowHandler.h"
 #import "MKAppConfigManager.h"
 #import "MKLoginManager.h"
+#import "MKRatingPromptManager.h"
 #import <Masonry/Masonry.h>
 #import <SVProgressHUD/SVProgressHUD.h>
 #import <SDWebImage/SDWebImage.h>
@@ -424,7 +425,7 @@ typedef struct {
 #pragma mark - MKReloanFlowHandlerDelegate
 
 - (void)reloanFlowHandlerDidStartSeamlessOrder:(id)handler {
-    // 复借弹窗保持在界面上, 等系统定位权限弹窗弹出 / 进 data capture 时再 hide
+    // 复借弹窗保持显示, 进 data capture 时由 didUpdateContactUploadProgress 处理 hide
 }
 
 - (void)reloanFlowHandlerDidDismiss:(id)handler {
@@ -914,7 +915,8 @@ static BOOL MKHasPositiveAmount(NSString *raw) {
     [sheet show];
 }
 
-#pragma mark - MKSeamlessOrderManagerDelegate (data capture only)
+#pragma mark - MKSeamlessOrderManagerDelegate
+// 与 MKProductApplyViewController 完全一致, 仅触发入口不同 (Order: 进入页面自动弹; Product: 返回按钮拦截)
 
 - (void)seamlessOrderManager:(id)manager didSubmitOrderSuccess:(NSString *)orderId {
 }
@@ -936,14 +938,11 @@ static BOOL MKHasPositiveAmount(NSString *raw) {
 - (void)seamlessOrderManager:(id)manager didCompleteWithOrderId:(NSString *)orderId {
     [SVProgressHUD dismiss];
     [self dismissDataCaptureSheet];
+    [MKRatingPromptManager noteOrderCompleted];   // 首单标志, pop 回首页后弹好评引导
     __weak typeof(self) wself = self;
-    MKBottomSheetView *succ = [MKBottomSheetView sheetWithType:MKBottomSheetTypeLoanDisbursedSuccess config:nil];
+    MKBottomSheetView *succ = [MKBottomSheetView sheetWithType:MKBottomSheetTypeApplySuccess config:nil];
     succ.onConfirmTapped = ^{
-        // sheet dismiss 动画 0.4s 后 pop 回上一页
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.4 * NSEC_PER_SEC)),
-                       dispatch_get_main_queue(), ^{
-            [wself.navigationController popViewControllerAnimated:YES];
-        });
+        [wself.navigationController popViewControllerAnimated:YES];
     };
     [succ show];
 }
@@ -952,25 +951,53 @@ static BOOL MKHasPositiveAmount(NSString *raw) {
     [SVProgressHUD dismiss];
     [self.reloanHandler hideReloanTipAlert];
     [self dismissDataCaptureSheet];
+
+    // 通讯录权限失败(系统弹 Don't Allow / iOS18 Limited / 未知状态) — 订单已下, 回上层页
+    // 其他失败(定位/订单接口/网络) — 留在当前页
+    NSString *desc = error.localizedDescription ?: @"";
+    if ([desc hasPrefix:@"Contacts"]) {
+        [[NSNotificationCenter defaultCenter] postNotificationName:MKSeamlessOrderDataCaptureCompletedNotification object:nil];
+        [self.navigationController popViewControllerAnimated:YES];
+    }
 }
 
 - (void)seamlessOrderManager:(id)manager shouldShowMessage:(NSString *)message {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [SVProgressHUD dismiss];
+        if (message.length > 0 && [message rangeOfString:@"location" options:NSCaseInsensitiveSearch].location != NSNotFound) return;
+        if (message.length > 0) [SVProgressHUD showInfoWithStatus:message];
+    });
 }
 
 - (void)seamlessOrderManagerDidCancel:(id)manager {
     [SVProgressHUD dismiss];
     [self.reloanHandler hideReloanTipAlert];
     [self dismissDataCaptureSheet];
+    [[NSNotificationCenter defaultCenter] postNotificationName:MKSeamlessOrderDataCaptureCompletedNotification object:nil];
+    [self.navigationController popViewControllerAnimated:YES];
+}
+
+- (void)seamlessOrderManagerWillShowSystemLocationPermissionAlert:(id)manager {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [SVProgressHUD dismiss];
+    });
 }
 
 - (void)seamlessOrderManagerDidCancelLocationPermission:(id)manager {
-    [SVProgressHUD dismiss];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [SVProgressHUD dismiss];
+        [self dismissDataCaptureSheet];
+    });
 }
 
 - (void)seamlessOrderManagerDidCancelContactsPermission:(id)manager {
-    [SVProgressHUD dismiss];
-    [self.reloanHandler hideReloanTipAlert];
-    [self dismissDataCaptureSheet];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [SVProgressHUD dismiss];
+        [self.reloanHandler hideReloanTipAlert];
+        [self dismissDataCaptureSheet];
+        [[NSNotificationCenter defaultCenter] postNotificationName:MKSeamlessOrderDataCaptureCompletedNotification object:nil];
+        [self.navigationController popViewControllerAnimated:YES];
+    });
 }
 
 - (void)dismissDataCaptureSheet {

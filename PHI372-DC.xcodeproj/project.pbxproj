@@ -21,16 +21,16 @@
 		3342AA362FBC414E0054696B /* Exceptions for "PHI372-DC" folder in "PHI372-DC" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Info.plist,
 				CLAUDE.md,
 				Common/CLAUDE.md,
+				Info.plist,
 				Modules/CLAUDE.md,
-				Modules/KYC/CLAUDE.md,
-				Modules/Order/CLAUDE.md,
 				Modules/Home/CLAUDE.md,
+				Modules/KYC/CLAUDE.md,
+				Modules/Login/CLAUDE.md,
+				Modules/Order/CLAUDE.md,
 				Modules/Product/CLAUDE.md,
 				Modules/Profile/CLAUDE.md,
-				Modules/Login/CLAUDE.md,
 			);
 			target = 3342AA1E2FBC414C0054696B /* PHI372-DC */;
 		};
@@ -233,7 +233,6 @@
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = GA2CAMV39C;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "PHI372-DC/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "ABL Cash";
 				INFOPLIST_KEY_NSCameraUsageDescription = "We need camera access to take photos of your ID card and face for KYC verification.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "ABL Cash needs your authorization to access your contact information to conduct a loan security assessment. When authorizing, please select \"Allow Full Access\", otherwise it may affect your review results. Your contact information will be uploaded to the server, but this information will not be saved or shared with any third party.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "ABL Cash requires your authorization to access location information that can be used to provide loan amounts in your area.";
@@ -280,7 +279,6 @@
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = GA2CAMV39C;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "PHI372-DC/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "ABL Cash";
 				INFOPLIST_KEY_NSCameraUsageDescription = "We need camera access to take photos of your ID card and face for KYC verification.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "ABL Cash needs your authorization to access your contact information to conduct a loan security assessment. When authorizing, please select \"Allow Full Access\", otherwise it may affect your review results. Your contact information will be uploaded to the server, but this information will not be saved or shared with any third party.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "ABL Cash requires your authorization to access location information that can be used to provide loan amounts in your area.";

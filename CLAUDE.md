@@ -12,6 +12,7 @@ iOS 借贷类工程,Objective-C + UIKit + Masonry。
 - **UI 必须基于 Pencil 节点的精确数据(坐标/hex/字号)**,截图只用于验收,不用于反推
 - **新建 Model / 弹窗 / Manager 前先 grep 同名类** — 工程预置 22+ 弹窗(`MKBottomSheetView` 枚举)和合并式 Model,禁止平行实现
 - **改 Apply / Order / KYC 后必须真机或模拟器跑 e2e** — `xcodebuild` 通过 ≠ 完成
+- **调试用 `NSLog` 修完 bug 必须删干净** — 排查阶段加的 `NSLog`/printf/临时断点变量,fix 验证后立刻移除;`grep -n "NSLog" <改过的文件>` 确认 0 残留再 commit
 
 ## 关键陷阱
 

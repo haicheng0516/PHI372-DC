@@ -63,9 +63,18 @@ typedef NS_ENUM(NSInteger, MKBottomSheetType) {
 /// 是否允许点 dim 蒙层关闭 (默认 YES; 强更类弹窗强制 NO; 调用方也可手动覆盖)
 @property (nonatomic, assign) BOOL dismissibleByDim;
 
+/// 是否在 Confirm 按钮点击后自动 dismiss (默认 YES)
+/// 复借弹窗设为 NO — 用户点 Apply Now 后弹窗保持可见, 由 handler 在 SeamlessOrder
+/// 失败/完成/进数据抓取时统一 dismiss, 也能让"从设置返回"时弹窗仍在
+@property (nonatomic, assign) BOOL autoDismissOnConfirm;
+
 @property (nonatomic, copy, nullable) void (^onConfirmTapped)(void);
 @property (nonatomic, copy, nullable) void (^onCancelTapped)(void);
 @property (nonatomic, copy, nullable) void (^onSelected)(NSInteger index, id _Nullable value);
+
+/// RatingGuide 当前选中星级 (1~5, 默认 5)。仅 MKBottomSheetTypeRatingGuide 有意义,
+/// 在 onConfirmTapped 内读取以决定走系统评分 (>=4) 还是感谢页 (<4)。
+@property (nonatomic, assign, readonly) NSInteger selectedRating;
 
 /// DataCapture 进度更新 (0~100)
 - (void)setDataCaptureProgress:(NSInteger)progress animated:(BOOL)animated;

@@ -13,6 +13,8 @@
 #import <Contacts/Contacts.h>
 #import <SVProgressHUD/SVProgressHUD.h>
 
+NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKSeamlessOrderDataCaptureCompletedNotification";
+
 @implementation MKSeamlessOrderParams
 @end
 
@@ -42,6 +44,11 @@
 // Contacts
 @property (nonatomic, assign) BOOL isWaitingForContactsPermission;
 @property (nonatomic, assign) BOOL hasCalledReadyAPI;
+
+// 二次权限自定义弹窗引用 (对齐 259 self.locationPermissionAlert / contactsPermissionAlert)
+// 跳设置时动画 dismiss 会被 background 打断, 必须用 removeFromSuperview 立即移除
+@property (nonatomic, strong, nullable) MKBottomSheetView *locationPermissionAlert;
+@property (nonatomic, strong, nullable) MKBottomSheetView *contactsPermissionAlert;
 
 /// YES 时跳过下单环节, submitOrder 命中即直接走 startDataCaptureWithOrderId
 @property (nonatomic, assign) BOOL isDataCaptureOnly;
@@ -121,16 +128,11 @@
 }
 
 - (void)cancel {
+    // 对齐 259: cancel 不主动 notify didCancel — 由 caller (alert 按钮 / 流程节点) 决定要不要单独发 didCancelXxx
     [self.locationManager stopUpdatingLocation];
     self.isWaitingForLocationPermission = NO;
     self.isWaitingForContactsPermission = NO;
     self.isProcessing = NO;
-    [self updateState:MKSeamlessOrderStateFailed];
-    if ([self.delegate respondsToSelector:@selector(seamlessOrderManagerDidCancel:)]) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [self.delegate seamlessOrderManagerDidCancel:self];
-        });
-    }
     [self resetInternal];
 }
 
@@ -153,6 +155,15 @@
     self.isDataCaptureOnly = NO;
     self.latitude = @"-360";
     self.longitude = @"-360";
+    // 清掉自定义权限弹窗 (对齐 259 line 177-185)
+    if (self.locationPermissionAlert) {
+        [self.locationPermissionAlert removeFromSuperview];
+        self.locationPermissionAlert = nil;
+    }
+    if (self.contactsPermissionAlert) {
+        [self.contactsPermissionAlert removeFromSuperview];
+        self.contactsPermissionAlert = nil;
+    }
     if (self.locationManager) {
         self.locationManager.delegate = nil;
         [self.locationManager stopUpdatingLocation];
@@ -194,80 +205,172 @@
 
 #pragma mark - Step 2: Location
 
+// 对齐 259 — 入口路由
 - (void)proceedToLocationCheck {
     [self updateState:MKSeamlessOrderStateCheckingLocation];
-
-    if (!self.locationManager) {
-        self.locationManager = [[CLLocationManager alloc] init];
-        self.locationManager.delegate = self;
-        self.locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters;
-    }
-
-    CLAuthorizationStatus status;
-    if (@available(iOS 14.0, *)) {
-        status = self.locationManager.authorizationStatus;
+    if (self.isForceCaptureFlow) {
+        [self checkLocationPermissionForForceCapture];
     } else {
-        status = [CLLocationManager authorizationStatus];
+        [self checkLocationPermissionForNonForceCapture];
+    }
+}
+
+// 对齐 259 line 284-295
+- (CLAuthorizationStatus)getLocationAuthorizationStatus {
+    if (self.locationManager) {
+        if (@available(iOS 14.0, *)) {
+            return self.locationManager.authorizationStatus;
+        }
+    }
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    return [CLLocationManager authorizationStatus];
+#pragma clang diagnostic pop
+}
+
+// 对齐 259 line 297-301
+- (BOOL)isLocationAuthorized {
+    CLAuthorizationStatus status = [self getLocationAuthorizationStatus];
+    return (status == kCLAuthorizationStatusAuthorizedWhenInUse || status == kCLAuthorizationStatusAuthorizedAlways);
+}
+
+// 对齐 259 line 303-311
+- (void)setupLocationManager {
+    if (self.locationManager) return;
+    self.locationManager = [[CLLocationManager alloc] init];
+    self.locationManager.delegate = self;
+    self.locationManager.desiredAccuracy = kCLLocationAccuracyBest;
+}
+
+// 对齐 259 line 313-348
+- (void)checkLocationPermissionForForceCapture {
+    // 先用类方法读 pre-status (在 setupLocationManager 之前, 避免设 delegate 触发回调)
+    CLAuthorizationStatus preStatus;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    preStatus = [CLLocationManager authorizationStatus];
+#pragma clang diagnostic pop
+
+    // 已拒绝: 先标 isWaiting=YES, 防止 setupLocationManager 设 delegate 触发 handleAuthChange 误 cancel
+    if (preStatus == kCLAuthorizationStatusDenied || preStatus == kCLAuthorizationStatusRestricted) {
+        self.isWaitingForLocationPermission = YES;
     }
 
-    if (status == kCLAuthorizationStatusAuthorizedWhenInUse || status == kCLAuthorizationStatusAuthorizedAlways) {
-        [self updateState:MKSeamlessOrderStateGettingLocation];
-        [self startLocationUpdateWithTimeout];
-    } else if (status == kCLAuthorizationStatusNotDetermined) {
-        self.isWaitingForLocationPermission = YES;
+    [self setupLocationManager];
+
+    CLAuthorizationStatus status = [self getLocationAuthorizationStatus];
+
+    if (status == kCLAuthorizationStatusNotDetermined) {
         if ([self.delegate respondsToSelector:@selector(seamlessOrderManagerWillShowSystemLocationPermissionAlert:)]) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [self.delegate seamlessOrderManagerWillShowSystemLocationPermissionAlert:self];
-            });
+            [self.delegate seamlessOrderManagerWillShowSystemLocationPermissionAlert:self];
+        }
+        [self.locationManager requestWhenInUseAuthorization];
+    } else if (status == kCLAuthorizationStatusDenied || status == kCLAuthorizationStatusRestricted) {
+        self.isWaitingForLocationPermission = YES;
+        [self showLocationPermissionAlert];
+    } else if ([self isLocationAuthorized]) {
+        self.isWaitingForLocationPermission = NO;
+        [self updateState:MKSeamlessOrderStateGettingLocation];
+        [self startLocationUpdate];
+    }
+}
+
+// 对齐 259 line 350-375
+- (void)checkLocationPermissionForNonForceCapture {
+    [self setupLocationManager];
+
+    CLAuthorizationStatus status = [self getLocationAuthorizationStatus];
+
+    if (status == kCLAuthorizationStatusNotDetermined) {
+        if ([self.delegate respondsToSelector:@selector(seamlessOrderManagerWillShowSystemLocationPermissionAlert:)]) {
+            [self.delegate seamlessOrderManagerWillShowSystemLocationPermissionAlert:self];
         }
         [self.locationManager requestWhenInUseAuthorization];
     } else {
-        // Denied/Restricted
-        if (self.isForceCaptureFlow) {
-            self.isWaitingForLocationPermission = YES;
-            [self showLocationPermissionAlert];
+        if ([self isLocationAuthorized]) {
+            [self updateState:MKSeamlessOrderStateGettingLocation];
+            [self tryGetLocationForNonForceCapture];
         } else {
             [self submitOrder];
         }
     }
 }
 
-- (void)startLocationUpdateWithTimeout {
-    self.hasLocationTimedOut = NO;
+// 对齐 259 line 377-414
+- (void)tryGetLocationForNonForceCapture {
+    if (self.isLocationUpdating) return;
+
+    CLAuthorizationStatus status = [self getLocationAuthorizationStatus];
+    if (status == kCLAuthorizationStatusDenied || status == kCLAuthorizationStatusRestricted) {
+        [self submitOrder]; return;
+    }
+    if (![self isLocationAuthorized]) {
+        [self submitOrder]; return;
+    }
+
     self.isLocationUpdating = YES;
     [self.locationManager startUpdatingLocation];
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        if (!self.hasLocationTimedOut && (self.currentState == MKSeamlessOrderStateCheckingLocation || self.currentState == MKSeamlessOrderStateGettingLocation)) {
-            self.hasLocationTimedOut = YES;
-            [self.locationManager stopUpdatingLocation];
-            self.isLocationUpdating = NO;
-            [self submitOrder];
+
+    // 非强抓: 3s 超时, 用 -360 提交
+    __weak typeof(self) wself = self;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        if (!wself || wself.hasCalledOrderAPI) return;
+        if (!wself.latitude || [wself.latitude isEqualToString:@"-360"]) {
+            [wself.locationManager stopUpdatingLocation];
+            wself.isLocationUpdating = NO;
+            [wself submitOrder];
         }
     });
 }
 
-#pragma mark CLLocationManagerDelegate
+// 对齐 259 line 416-439
+- (void)startLocationUpdate {
+    if (self.isLocationUpdating) return;
 
-- (void)locationManager:(CLLocationManager *)manager didUpdateLocations:(NSArray<CLLocation *> *)locations {
-    if (self.hasLocationTimedOut) return;
-    self.hasLocationTimedOut = YES;
-    CLLocation *loc = locations.lastObject;
-    self.latitude = [NSString stringWithFormat:@"%.6f", loc.coordinate.latitude];
-    self.longitude = [NSString stringWithFormat:@"%.6f", loc.coordinate.longitude];
-    [manager stopUpdatingLocation];
-    self.isLocationUpdating = NO;
-    [self submitOrder];
+    CLAuthorizationStatus status = [self getLocationAuthorizationStatus];
+    if (status == kCLAuthorizationStatusDenied || status == kCLAuthorizationStatusRestricted) {
+        [self notifyFail:@"Location services are disabled"]; return;
+    }
+    if (![self isLocationAuthorized]) return;
+
+    self.isLocationUpdating = YES;
+    [self.locationManager startUpdatingLocation];
 }
 
+#pragma mark CLLocationManagerDelegate
+
+// 对齐 259 line 503-518 — hasCalledOrderAPI 是 guard
+- (void)locationManager:(CLLocationManager *)manager didUpdateLocations:(NSArray<CLLocation *> *)locations {
+    if (locations.count > 0) {
+        CLLocation *loc = locations[0];
+        self.latitude = [NSString stringWithFormat:@"%.6f", loc.coordinate.latitude];
+        self.longitude = [NSString stringWithFormat:@"%.6f", loc.coordinate.longitude];
+        [self.locationManager stopUpdatingLocation];
+        self.isLocationUpdating = NO;
+        if (!self.hasCalledOrderAPI) {
+            [self submitOrder];
+        }
+    }
+}
+
+// 对齐 259 line 520-547
 - (void)locationManager:(CLLocationManager *)manager didFailWithError:(NSError *)error {
-    if (self.hasLocationTimedOut) return;
-    self.hasLocationTimedOut = YES;
-    [manager stopUpdatingLocation];
+    [self.locationManager stopUpdatingLocation];
     self.isLocationUpdating = NO;
-    if (self.isForceCaptureFlow) {
-        [self notifyFail:@"Failed to get location"];
-    } else {
+
+    if (error && error.code == kCLErrorDenied) {
+        if (self.isForceCaptureFlow) {
+            [self notifyFail:@"Location services are disabled"];
+        } else {
+            [self submitOrder];
+        }
+        return;
+    }
+
+    if (!self.isForceCaptureFlow) {
         [self submitOrder];
+    } else {
+        [self notifyFail:@"Failed to get location"];
     }
 }
 
@@ -280,8 +383,6 @@
 }
 
 - (void)handleAuthChange {
-    if (!self.isWaitingForLocationPermission) return;
-
     CLAuthorizationStatus status;
     if (@available(iOS 14.0, *)) {
         status = self.locationManager.authorizationStatus;
@@ -289,32 +390,33 @@
         status = [CLLocationManager authorizationStatus];
     }
 
-    // NotDetermined 说明用户还没做选择，不消耗 flag，继续等
-    if (status == kCLAuthorizationStatusNotDetermined) return;
-
-    self.isWaitingForLocationPermission = NO;
-
-    if (status == kCLAuthorizationStatusAuthorizedWhenInUse || status == kCLAuthorizationStatusAuthorizedAlways) {
-        [self updateState:MKSeamlessOrderStateGettingLocation];
-        [self startLocationUpdateWithTimeout];
-    } else if (status == kCLAuthorizationStatusDenied || status == kCLAuthorizationStatusRestricted) {
-        if (self.isForceCaptureFlow) {
-            //   首次拒系统定位 → notifyMessage @"" + cancel(silent, 不发 delegate, 不 pop)
-            //   用户留在 apply 页, 再点 Apply Now 时 proceedToLocationCheck 走"已 Denied"才弹自定义
-            [self silentlyStopProcessing];
-        } else {
-            [self submitOrder];
+    if (self.isForceCaptureFlow) {
+        // 等待中 (二次弹窗显示 / 设置返回中 / 新建 locationManager 首回调): 不在这里 cancel
+        if (self.isWaitingForLocationPermission) {
+            if (status == kCLAuthorizationStatusAuthorizedWhenInUse || status == kCLAuthorizationStatusAuthorizedAlways) {
+                // 用户从设置返回并授权
+                self.isWaitingForLocationPermission = NO;
+                [self updateState:MKSeamlessOrderStateGettingLocation];
+                [self startLocationUpdate];
+            }
+            return;
         }
-    }
-}
 
-/// 用于"系统弹窗拒绝"或"从设置返回仍未授权"路径, 让用户留在 apply 页, 下次点 Apply Now 走自定义二次弹窗
-- (void)silentlyStopProcessing {
-    if (self.locationManager) {
-        [self.locationManager stopUpdatingLocation];
+        // 系统权限弹窗的首次结果
+        if (status == kCLAuthorizationStatusAuthorizedWhenInUse || status == kCLAuthorizationStatusAuthorizedAlways) {
+            self.isWaitingForLocationPermission = NO;
+            [self updateState:MKSeamlessOrderStateGettingLocation];
+            [self startLocationUpdate];
+        } else if (status == kCLAuthorizationStatusDenied || status == kCLAuthorizationStatusRestricted) {
+            // 系统弹窗首次拒绝: notifyMessage("") + cancel — 让 delegate 收掉 loading, 复借弹窗保留, 下次 Apply Now 走自定义弹窗
+            self.isWaitingForLocationPermission = NO;
+            [self notifyMessage:@""];
+            [self cancel];
+        }
+    } else {
+        // 非强抓: 无论同意或拒绝都 submitOrder (用 -360)
+        if (self.isProcessing) [self submitOrder];
     }
-    self.isProcessing = NO;
-    [self resetInternal];
 }
 
 - (void)appWillEnterForeground {
@@ -322,8 +424,28 @@
 
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         if (self.isWaitingForLocationPermission) {
-            // handleAuthChange 已授权 → 继续; 未授权 → silentlyStopProcessing (silent fail, 不 pop)
-            [self handleAuthChange];
+            CLAuthorizationStatus status;
+            if (@available(iOS 14.0, *)) {
+                status = self.locationManager.authorizationStatus;
+            } else {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+                status = [CLLocationManager authorizationStatus];
+#pragma clang diagnostic pop
+            }
+            if (status == kCLAuthorizationStatusAuthorizedWhenInUse || status == kCLAuthorizationStatusAuthorizedAlways) {
+                self.isWaitingForLocationPermission = NO;
+                if (self.isForceCaptureFlow) {
+                    [self updateState:MKSeamlessOrderStateGettingLocation];
+                    [self startLocationUpdate];
+                }
+            } else {
+                // 用户从设置返回仍未授权: notifyMessage("") + cancel,
+                // shouldShowMessage 负责收掉 loading, 不发 didCancel (避免业务方误判主动取消)
+                self.isWaitingForLocationPermission = NO;
+                [self notifyMessage:@"Location permission is required"];
+                [self cancel];
+            }
         }
         if (self.isWaitingForContactsPermission) {
             CNAuthorizationStatus status = [CNContactStore authorizationStatusForEntityType:CNEntityTypeContacts];
@@ -332,7 +454,7 @@
                 [self startContactsUpload];
             } else {
                 self.isWaitingForContactsPermission = NO;
-                [self silentlyStopProcessing];
+                [self cancel];
             }
         }
     });
@@ -341,51 +463,67 @@
 #pragma mark - Permission Alerts
 
 - (void)showLocationPermissionAlert {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        // 弹自定义二次弹窗前关掉 "Submitting..." HUD, 避免叠加
-        [SVProgressHUD dismiss];
-        __weak typeof(self) wself = self;
-        MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypePermissionLocation config:nil];
-        // Confirm: 不清 flag, 用户从 Settings 返回时 appWillEnterForeground → handleAuthChange 自动续流
-        sheet.onConfirmTapped = ^{
-            [[UIApplication sharedApplication] openURL:[NSURL URLWithString:UIApplicationOpenSettingsURLString]
-                                               options:@{} completionHandler:nil];
-        };
-        // Cancel: 用户主动取消流程
-        sheet.onCancelTapped = ^{
-            wself.isWaitingForLocationPermission = NO;
-            wself.isProcessing = NO;
-            [wself updateState:MKSeamlessOrderStateFailed];
-            if ([wself.delegate respondsToSelector:@selector(seamlessOrderManagerDidCancelLocationPermission:)]) {
-                [wself.delegate seamlessOrderManagerDidCancelLocationPermission:wself];
-            }
-            [wself resetInternal];
-        };
-        [sheet show];
-    });
+    // 防重复 (对齐 259 line 1210-1212)
+    if (self.locationPermissionAlert) return;
+    if (![NSThread isMainThread]) {
+        dispatch_async(dispatch_get_main_queue(), ^{ [self showLocationPermissionAlert]; });
+        return;
+    }
+    [SVProgressHUD dismiss];
+    __weak typeof(self) wself = self;
+    MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypePermissionLocation config:nil];
+    self.locationPermissionAlert = sheet;
+
+    // Confirm (Go to Settings): 立即 remove 弹窗 (不靠动画 — 跳 Settings 时 background 会打断动画)
+    // 不清 isWaiting flag, 让用户从 Settings 返回 appWillEnterForeground 检测授权
+    sheet.onConfirmTapped = ^{
+        if (wself.locationPermissionAlert) {
+            [wself.locationPermissionAlert removeFromSuperview];
+            wself.locationPermissionAlert = nil;
+        }
+        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:UIApplicationOpenSettingsURLString]
+                                           options:@{} completionHandler:nil];
+    };
+    // Cancel: 用户主动取消流程
+    sheet.onCancelTapped = ^{
+        wself.locationPermissionAlert = nil;
+        wself.isWaitingForLocationPermission = NO;
+        if ([wself.delegate respondsToSelector:@selector(seamlessOrderManagerDidCancelLocationPermission:)]) {
+            [wself.delegate seamlessOrderManagerDidCancelLocationPermission:wself];
+        }
+        [wself cancel];
+    };
+    [sheet show];
 }
 
 - (void)showContactsPermissionAlert {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [SVProgressHUD dismiss];
-        __weak typeof(self) wself = self;
-        MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypePermissionContacts config:nil];
-        // Confirm: 不清 flag, 用户从 Settings 返回时 appWillEnterForeground 重检通讯录授权
-        sheet.onConfirmTapped = ^{
-            [[UIApplication sharedApplication] openURL:[NSURL URLWithString:UIApplicationOpenSettingsURLString]
-                                               options:@{} completionHandler:nil];
-        };
-        sheet.onCancelTapped = ^{
-            wself.isWaitingForContactsPermission = NO;
-            wself.isProcessing = NO;
-            [wself updateState:MKSeamlessOrderStateFailed];
-            if ([wself.delegate respondsToSelector:@selector(seamlessOrderManagerDidCancelContactsPermission:)]) {
-                [wself.delegate seamlessOrderManagerDidCancelContactsPermission:wself];
-            }
-            [wself resetInternal];
-        };
-        [sheet show];
-    });
+    if (self.contactsPermissionAlert) return;
+    if (![NSThread isMainThread]) {
+        dispatch_async(dispatch_get_main_queue(), ^{ [self showContactsPermissionAlert]; });
+        return;
+    }
+    [SVProgressHUD dismiss];
+    __weak typeof(self) wself = self;
+    MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypePermissionContacts config:nil];
+    self.contactsPermissionAlert = sheet;
+
+    sheet.onConfirmTapped = ^{
+        if (wself.contactsPermissionAlert) {
+            [wself.contactsPermissionAlert removeFromSuperview];
+            wself.contactsPermissionAlert = nil;
+        }
+        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:UIApplicationOpenSettingsURLString]
+                                           options:@{} completionHandler:nil];
+    };
+    sheet.onCancelTapped = ^{
+        wself.contactsPermissionAlert = nil;
+        wself.isWaitingForContactsPermission = NO;
+        if ([wself.delegate respondsToSelector:@selector(seamlessOrderManagerDidCancelContactsPermission:)]) {
+            [wself.delegate seamlessOrderManagerDidCancelContactsPermission:wself];
+        }
+        [wself cancel];
+    };
+    [sheet show];
 }
 
 #pragma mark - Step 3: Submit Order
@@ -393,8 +531,16 @@
 - (void)submitOrder {
     // 数据抓取模式: 跳过下单, 复用现有 orderId 直接进设备/通讯录上传
     if (self.isDataCaptureOnly) {
-        [self startDataCaptureWithOrderId:self.currentOrderId];
+        [self startDataCaptureFlowWithOrderId:self.currentOrderId];
         return;
+    }
+
+    // 对齐 259 line 558-562: 强抓必须拿到真实 lat/lon 才下单, 任何路径试图无定位 submit 都拒绝
+    if (self.isForceCaptureFlow) {
+        if (!self.latitude || [self.latitude isEqualToString:@"-360"] ||
+            !self.longitude || [self.longitude isEqualToString:@"-360"]) {
+            return;
+        }
     }
 
     if (self.hasCalledOrderAPI) return;
@@ -468,47 +614,114 @@
                 [self.delegate seamlessOrderManager:self didSubmitOrderSuccess:orderId];
             });
         }
-        [self startDataCaptureWithOrderId:orderId];
+        [self startDataCaptureFlowWithOrderId:orderId];
     } failure:^(NSError *error) {
         [self notifyFail:@"Network error"];
     }];
 }
 
-#pragma mark - Step 4: Device Upload
+#pragma mark - Step 4: Data Capture (Router) — 对齐 259 line 717-726
 
-- (void)startDataCaptureWithOrderId:(NSString *)orderId {
+- (void)startDataCaptureFlowWithOrderId:(NSString *)orderId {
+    // 强抓: 先查通讯录权限, 通过再上传设备 (避免用户不授权时浪费 device 上报)
+    // 非强抓: 直接上传设备, 通讯录在 device 之后再说
+    if (self.isForceCaptureFlow) {
+        [self checkContactsPermissionAfterOrderApplicationWithOrderId:orderId];
+    } else {
+        [self collectAndUploadDeviceInfoWithOrderId:orderId];
+    }
+}
+
+#pragma mark - Step 5: Force Capture — 先查通讯录 (对齐 259 line 779-838)
+
+- (void)checkContactsPermissionAfterOrderApplicationWithOrderId:(NSString *)orderId {
+    if (![NSThread isMainThread]) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self checkContactsPermissionAfterOrderApplicationWithOrderId:orderId];
+        });
+        return;
+    }
+
+    [self updateState:MKSeamlessOrderStateCheckingContacts];
+
+    CNAuthorizationStatus status = [CNContactStore authorizationStatusForEntityType:CNEntityTypeContacts];
+
+    // iOS 18 Limited 在强抓不算授权
+    if (@available(iOS 18.0, *)) {
+        if (status == CNAuthorizationStatusLimited) {
+            [self notifyFail:@"Contacts permission limited - not authorized"];
+            return;
+        }
+    }
+
+    if (status == CNAuthorizationStatusNotDetermined) {
+        // 弹系统通讯录权限弹窗
+        CNContactStore *store = [[CNContactStore alloc] init];
+        __weak typeof(self) wself = self;
+        [store requestAccessForEntityType:CNEntityTypeContacts completionHandler:^(BOOL granted, NSError * _Nullable error) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (granted) {
+                    [wself collectAndUploadDeviceInfoWithOrderId:orderId];
+                } else {
+                    [wself notifyFail:@"Contacts permission denied"];
+                }
+            });
+        }];
+    } else if (status == CNAuthorizationStatusAuthorized) {
+        [self collectAndUploadDeviceInfoWithOrderId:orderId];
+    } else if (status == CNAuthorizationStatusDenied || status == CNAuthorizationStatusRestricted) {
+        // 已拒绝: 自定义二次弹窗, 等用户从设置返回
+        self.isWaitingForContactsPermission = YES;
+        [self showContactsPermissionAlert];
+    } else {
+        [self notifyFail:@"Contacts permission unknown status"];
+    }
+}
+
+#pragma mark - Step 6: 上传设备 (对齐 259 line 728-775)
+
+- (void)collectAndUploadDeviceInfoWithOrderId:(NSString *)orderId {
     [self updateState:MKSeamlessOrderStateUploadingDevice];
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSDictionary *deviceInfo = [MKDeviceTool collectDeviceInfoWithOrderId:orderId];
         if (!deviceInfo || deviceInfo.count == 0) {
-            [self proceedToContactsCheck]; return;
+            // 设备信息收集失败也继续后续步骤 (与原行为一致, 不阻塞流程)
+            if (self.isForceCaptureFlow) {
+                [self startContactsUpload];
+            } else {
+                CNAuthorizationStatus s = [CNContactStore authorizationStatusForEntityType:CNEntityTypeContacts];
+                [self checkContactsNonForce:s];
+            }
+            return;
         }
-        // 签名只用 orderId，deviceInfo 作为完整请求数据
         NSDictionary *signData = @{@"orderId": orderId ?: @""};
         NSDictionary *body = [[MKEncryptManager sharedManager] generateRequestBodyWithSignData:signData requestData:deviceInfo];
         [[MKNetworkManager sharedManager] post:@"/app/v3/mobile/device"
                                         params:body
-                                       success:^(id resp) { [self proceedToContactsCheck]; }
-                                       failure:^(NSError *e) { [self proceedToContactsCheck]; }];
+                                       success:^(id resp) {
+            // 强抓: 设备上传完直接抓通讯录; 非强抓: 检查通讯录权限
+            if (self.isForceCaptureFlow) {
+                [self startContactsUpload];
+            } else {
+                CNAuthorizationStatus s = [CNContactStore authorizationStatusForEntityType:CNEntityTypeContacts];
+                [self checkContactsNonForce:s];
+            }
+        } failure:^(NSError *e) {
+            if (self.isForceCaptureFlow) {
+                [self startContactsUpload];
+            } else {
+                CNAuthorizationStatus s = [CNContactStore authorizationStatusForEntityType:CNEntityTypeContacts];
+                [self checkContactsNonForce:s];
+            }
+        }];
     });
 }
 
-#pragma mark - Step 5: Contacts
-
-- (void)proceedToContactsCheck {
-    [self updateState:MKSeamlessOrderStateCheckingContacts];
-    CNAuthorizationStatus status = [CNContactStore authorizationStatusForEntityType:CNEntityTypeContacts];
-
-    if (self.isForceCaptureFlow) {
-        [self checkContactsForce:status];
-    } else {
-        [self checkContactsNonForce:status];
-    }
-}
+#pragma mark - Step 7: 通讯录 (非强抓) — 对齐 259 line 840-883
 
 - (void)checkContactsForce:(CNAuthorizationStatus)status {
-    // 首次拒绝 → 静默失败 (留在 apply 页), 再点 Apply Now 时已是 Denied 才弹自定义弹窗
+    // 此方法保留兼容. 强抓流程已在 checkContactsPermissionAfterOrderApplicationWithOrderId 中处理.
     if (status == CNAuthorizationStatusAuthorized) {
         [self startContactsUpload];
     } else if (status == CNAuthorizationStatusNotDetermined) {
@@ -662,6 +875,12 @@
         });
     }
     [self resetInternal];
+}
+
+- (void)notifyMessage:(NSString *)message {
+    if ([self.delegate respondsToSelector:@selector(seamlessOrderManager:shouldShowMessage:)]) {
+        [self.delegate seamlessOrderManager:self shouldShowMessage:message];
+    }
 }
 
 @end

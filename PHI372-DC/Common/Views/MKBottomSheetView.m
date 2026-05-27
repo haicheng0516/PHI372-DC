@@ -25,6 +25,9 @@
 @property (nonatomic, strong, nullable) UIView *dcTrackBar;
 @property (nonatomic, strong, nullable) UIView *dcFillBar;
 @property (nonatomic, strong, nullable) UILabel *dcPercentLabel;
+// RatingGuide: 星星交互 (selectedRating 在 .h 是 readonly, 这里重声明为可写)
+@property (nonatomic, assign) NSInteger selectedRating;
+@property (nonatomic, strong, nullable) NSArray<UIImageView *> *ratingStars;
 // 私有按钮构建方法
 typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
     MKSheetCancelFillGray  = 0,   // #E9E9E4 (多数 sheet 默认)
@@ -59,6 +62,11 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
                        || type == MKBottomSheetTypeDataCapture
                        || type == MKBottomSheetTypeApplySuccess);
         _dismissibleByDim = !noDim;
+        // 复借弹窗 Confirm 不自动 dismiss — 由 handler 控制 (用户从设置返回时复借弹窗仍在)
+        BOOL isReloan = (type == MKBottomSheetTypeHomeReloan
+                          || type == MKBottomSheetTypeOrderReloan
+                          || type == MKBottomSheetTypeProductReloan);
+        _autoDismissOnConfirm = !isReloan;
         [self setupDim];
         [self setupContainerInitial];
         [self addDragHandle];
@@ -171,11 +179,11 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
         case MKBottomSheetTypeRatingGuide:
             [self buildRatingGuide]; break;
         case MKBottomSheetTypePermissionCamera:
-            [self buildPermission:@"camera"  body:@"We need camera access to take ID photos for verification. Tap Confirm and allow access in Settings."]; break;
+            [self buildPermission:@"mk_sheet_camera"   body:@"We need camera access to take ID photos for verification. Tap Confirm and allow access in Settings."]; break;
         case MKBottomSheetTypePermissionLocation:
-            [self buildPermission:@"location.fill"  body:@"We use your location to enhance fraud prevention. Tap Confirm and allow access in Settings."]; break;
+            [self buildPermission:@"mk_sheet_locate"   body:@"We use your location to enhance fraud prevention. Tap Confirm and allow access in Settings."]; break;
         case MKBottomSheetTypePermissionContacts:
-            [self buildPermission:@"person.2.fill" body:@"We need contacts access for emergency contact verification. Tap Confirm and allow access in Settings."]; break;
+            [self buildPermission:@"mk_sheet_contacts" body:@"We need contacts access for emergency contact verification. Tap Confirm and allow access in Settings."]; break;
 
         case MKBottomSheetTypeDataCapture:
             [self buildDataCapture]; break;
@@ -247,12 +255,12 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
 
 - (void)buildResult:(BOOL)success title:(NSString *)title body:(NSString *)body confirm:(NSString *)c bodyAlign:(NSTextAlignment)bodyAlign {
     CGFloat W = self.cardWidth;
-    // Pencil: Se_success/Se_fail 图片占位 68x60, 居中
+    // Pencil: Se_success/Se_fail 图片 68x60, 居中
     CGFloat y = S(28);
 
-    UIView *resultIcon = [[UIView alloc] initWithFrame:CGRectMake((W - S(60)) * 0.5, y, S(60), S(52))];
-    resultIcon.backgroundColor = success ? kColorPrimary : kColorError;
-    resultIcon.layer.cornerRadius = S(8);
+    UIImageView *resultIcon = [[UIImageView alloc] initWithFrame:CGRectMake((W - S(60)) * 0.5, y, S(60), S(52))];
+    resultIcon.image = [UIImage imageNamed:success ? @"mk_sheet_success" : @"mk_sheet_fail"];
+    resultIcon.contentMode = UIViewContentModeScaleAspectFit;
     [self.containerView addSubview:resultIcon];
     y = CGRectGetMaxY(resultIcon.frame) + S(12);
 
@@ -284,12 +292,12 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
 
 - (void)buildConfirmWithHintIcon:(NSString *)title body:(NSString *)body confirm:(NSString *)c cancel:(NSString *)cancel bodyAlign:(NSTextAlignment)bodyAlign {
     CGFloat W = self.cardWidth;
-    // Pencil: Se_hint 图片占位 68x60, 居中
+    // Pencil: Se_hint 图片 68x60, 居中
     CGFloat y = S(28);
 
-    UIView *hintIcon = [[UIView alloc] initWithFrame:CGRectMake((W - S(60)) * 0.5, y, S(60), S(52))];
-    hintIcon.backgroundColor = MKHexColor(0xEB8A54);
-    hintIcon.layer.cornerRadius = S(8);
+    UIImageView *hintIcon = [[UIImageView alloc] initWithFrame:CGRectMake((W - S(60)) * 0.5, y, S(60), S(52))];
+    hintIcon.image = [UIImage imageNamed:@"mk_sheet_hint"];
+    hintIcon.contentMode = UIViewContentModeScaleAspectFit;
     [self.containerView addSubview:hintIcon];
     y = CGRectGetMaxY(hintIcon.frame) + S(12);
 
@@ -439,6 +447,7 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
     UIImageView *prodLogoIcon = [[UIImageView alloc] initWithFrame:CGRectInset(prodLogoBg.bounds, S(4), S(4))];
     prodLogoIcon.contentMode = UIViewContentModeScaleAspectFit;
     [prodLogoBg addSubview:prodLogoIcon];
+    // URL 失效/为空时不显示占位, 只露出底色色块
     if (logoURL.length > 0) {
         [prodLogoIcon sd_setImageWithURL:[NSURL URLWithString:logoURL]];
     }
@@ -479,14 +488,20 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
     CGFloat starGap = S(10);
     CGFloat starsTotalW = starSize * 5 + starGap * 4;
     CGFloat startX = (W - starsTotalW) * 0.5;
+    NSMutableArray<UIImageView *> *stars = [NSMutableArray arrayWithCapacity:5];
     for (NSInteger i = 0; i < 5; i++) {
-        UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration configurationWithPointSize:28 weight:UIImageSymbolWeightRegular];
-        UIImageView *star = [[UIImageView alloc] initWithImage:[[UIImage systemImageNamed:@"star.fill" withConfiguration:cfg]
-                                                                imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]];
-        star.tintColor = MKHexColor(0xF4C15F);
-        star.frame = CGRectMake(startX + i * (starSize + starGap), y, starSize, starSize);
+        UIImageView *star = [[UIImageView alloc] initWithFrame:CGRectMake(startX + i * (starSize + starGap), y, starSize, starSize)];
+        star.contentMode = UIViewContentModeScaleAspectFit;
+        star.userInteractionEnabled = YES;
+        star.tag = i + 1;   // 星级 1~5
+        UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(ratingStarTapped:)];
+        [star addGestureRecognizer:tap];
         [self.containerView addSubview:star];
+        [stars addObject:star];
     }
+    self.ratingStars = stars;
+    self.selectedRating = 5;        // 默认满星
+    [self refreshRatingStars];
     y += starSize + S(20);
 
     // Pencil cKdsE 段落 left
@@ -497,16 +512,32 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
     self.contentMaxY = y;
 }
 
+- (void)ratingStarTapped:(UITapGestureRecognizer *)tap {
+    self.selectedRating = tap.view.tag;   // 1~5
+    [self refreshRatingStars];
+}
+
+- (void)refreshRatingStars {
+    UIImageSymbolConfiguration *cfg = [UIImageSymbolConfiguration configurationWithPointSize:28 weight:UIImageSymbolWeightRegular];
+    for (NSInteger i = 0; i < self.ratingStars.count; i++) {
+        BOOL filled = (i < self.selectedRating);
+        UIImageView *star = self.ratingStars[i];
+        star.image = [[UIImage systemImageNamed:(filled ? @"star.fill" : @"star") withConfiguration:cfg]
+                      imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
+        star.tintColor = filled ? MKHexColor(0xF4C15F) : MKHexColor(0xCCCCCC);
+    }
+}
+
 #pragma mark - Permission
 
-- (void)buildPermission:(NSString *)symbol body:(NSString *)body {
+- (void)buildPermission:(NSString *)assetName body:(NSString *)body {
     CGFloat W = self.cardWidth;
-    // Pencil: Se_camera/Se_locate/Se_contacts 图片 68x60, 渐变占位
+    // Pencil: Se_camera/Se_locate/Se_contacts 图片 68x60, 居中
     CGFloat y = S(28);
 
-    UIView *permIcon = [[UIView alloc] initWithFrame:CGRectMake((W - S(60)) * 0.5, y, S(60), S(52))];
-    permIcon.backgroundColor = MKHexColor(0x20BCDB);
-    permIcon.layer.cornerRadius = S(8);
+    UIImageView *permIcon = [[UIImageView alloc] initWithFrame:CGRectMake((W - S(60)) * 0.5, y, S(60), S(52))];
+    permIcon.image = [UIImage imageNamed:assetName];
+    permIcon.contentMode = UIViewContentModeScaleAspectFit;
     [self.containerView addSubview:permIcon];
     y = CGRectGetMaxY(permIcon.frame) + S(16);
 
@@ -1183,7 +1214,7 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
 
 - (void)confirmTapped {
     if (self.onConfirmTapped) self.onConfirmTapped();
-    [self dismiss];
+    if (self.autoDismissOnConfirm) [self dismiss];
 }
 
 - (void)cancelTapped {

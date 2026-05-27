@@ -19,7 +19,7 @@
 | `AppDelegate.*` `SceneDelegate.*` `main.m` | App 生命周期入口 | [PHI372-DC/CLAUDE.md](./PHI372-DC/CLAUDE.md) |
 | `Info.plist` | 启动配置 + 权限文案 + 应用名 | ↑ |
 | `Assets.xcassets/` | 所有图片资源(`mk_xxx` 命名) | ↑ |
-| `Base.lproj/` | iOS 本地化 | — |
+| `Base.lproj/LaunchScreen.storyboard` | 启动屏(Se_bg 全屏 + 右下角 logo + APP name) | — |
 | `Common/` | 跨模块共享代码 | [Common/CLAUDE.md](./PHI372-DC/Common/CLAUDE.md) |
 | `Modules/` | 业务功能模块 | [Modules/CLAUDE.md](./PHI372-DC/Modules/CLAUDE.md) |
 
@@ -40,7 +40,6 @@
 
 | 模块 | 功能 | 关键 VC | 本地 CLAUDE.md |
 |---|---|---|---|
-| `Launch/` | 启动页 | `MKLaunchViewController` | — |
 | `Login/` | 登录/注册 | `MKSignInViewController` | [Login/CLAUDE.md](./PHI372-DC/Modules/Login/CLAUDE.md) |
 | `KYC/` | 实名认证(Personal/ID/IDCamera/Liveness/Finance/Contact/Payment/BankCardEdit) | `MKKYCBaseViewController` + 子 VC | [KYC/CLAUDE.md](./PHI372-DC/Modules/KYC/CLAUDE.md) |
 | `Home/` | 首页 banner + 产品入口,换绑银行卡 | `MKHomeViewController` `MKHomeBankCardViewController` | [Home/CLAUDE.md](./PHI372-DC/Modules/Home/CLAUDE.md) |

@@ -36,7 +36,9 @@
 #import "MKAppConfigModel.h"
 #import "MKAppConfigManager.h"
 #import "MKAppVersionResponse.h"
+#import "MKRatingPromptManager.h"
 #import <SVProgressHUD/SVProgressHUD.h>
+#import <StoreKit/StoreKit.h>
 #import <Masonry/Masonry.h>
 
 static BOOL sHasShownUpdateAlertThisLaunch = NO;
@@ -66,6 +68,7 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
 // 复借: handler 管理 seamless order, 当前 reloan sheet 引用
 @property (nonatomic, strong, nullable) MKReloanFlowHandler *reloanHandler;
 @property (nonatomic, strong, nullable) MKBottomSheetView *currentReloanSheet;
+@property (nonatomic, strong, nullable) MKBottomSheetView *dataCaptureSheet;
 @end
 
 @implementation MKHomeViewController
@@ -86,6 +89,22 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
     [self setupBottomBar];
     [self setupTableView];
     [self refreshBottomBarVisibility];
+
+    // 对齐 259 MainHomeViewController L124: 监听复借/数据采集结束 → 刷新首页
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(onSeamlessOrderDataCaptureCompleted:)
+                                                 name:MKSeamlessOrderDataCaptureCompletedNotification
+                                               object:nil];
+}
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+- (void)onSeamlessOrderDataCaptureCompleted:(NSNotification *)note {
+    [self requestAppConfig];
+    [self requestHomeData];
+    [self requestProductList];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -103,9 +122,68 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
     [self requestUserInfo];
 }
 
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    self.hasViewDisappeared = NO;
+    // 从下单成功页(Order/Product)pop 回首页时, 消费待弹标志 → 弹好评引导
+    [self consumePendingRatingPrompt];
+}
+
 - (void)viewWillDisappear:(BOOL)animated {
     [super viewWillDisappear:animated];
     self.hasViewDisappeared = YES;
+}
+
+#pragma mark - 好评引导
+
+/// 读取待弹标志, 命中则延迟弹出好评引导(确保页面已完全展示)
+- (void)consumePendingRatingPrompt {
+    if (![MKRatingPromptManager consumePendingFlag]) return;
+    __weak typeof(self) wself = self;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [wself checkAndShowRatingAlert];
+    });
+}
+
+/// 按 feedbackGuidance 开关 + 一次性守卫决定是否弹好评引导
+- (void)checkAndShowRatingAlert {
+    if ([MKRatingPromptManager hasShownPrompt]) return;     // 永久一次性
+    if (self.hasViewDisappeared) return;
+
+    NSString *fg = [MKAppConfigManager sharedManager].currentAppConfig.feedbackGuidance;
+    if ([fg isEqualToString:@"0"]) return;                  // 开关关闭
+    if ([fg isEqualToString:@"2"] && self.homeData.appUserType != 2) return; // 仅老客展示
+
+    [MKRatingPromptManager markPromptShown];
+
+    __weak typeof(self) wself = self;
+    MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypeRatingGuide config:nil];
+    __weak MKBottomSheetView *wsheet = sheet;
+    sheet.onConfirmTapped = ^{
+        NSInteger rating = wsheet.selectedRating;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            if (rating >= 4) {
+                [wself requestSystemAppStoreReview];        // 4~5 星 → 系统评分
+            } else {
+                [[MKBottomSheetView sheetWithType:MKBottomSheetTypeRatingSuccess config:nil] show]; // <4 星 → 感谢页
+            }
+        });
+    };
+    [sheet show];
+}
+
+- (void)requestSystemAppStoreReview {
+    UIWindowScene *activeScene = nil;
+    for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+        if (scene.activationState == UISceneActivationStateForegroundActive &&
+            [scene isKindOfClass:[UIWindowScene class]]) {
+            activeScene = (UIWindowScene *)scene;
+            break;
+        }
+    }
+    if (activeScene) {
+        [SKStoreReviewController requestReviewInScene:activeScene];
+    }
 }
 
 #pragma mark - UI
@@ -460,18 +538,21 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
     if (self.hasViewDisappeared) return;
     if (![[MKLoginManager sharedManager] isLoggedIn]) return;
 
-    // 334 L613: config 还没回来 → 等 requestAppConfig 回调后会再次触发
     MKAppConfigModel *cfg = [MKAppConfigManager sharedManager].currentAppConfig;
-    if (!cfg) return;
+    if (!cfg) return;   // config 还没回来, 等 requestAppConfig 回调再触发
     if (![cfg.dynamicParameter.fjtip isEqualToString:@"on"]) return;
 
     self.isCheckingReloanTip = YES;
+    // 黑色遮罩 + loading: 在弹窗显示前阻止用户操作首页, 防止快速离开/重复触发
+    [SVProgressHUD setDefaultMaskType:SVProgressHUDMaskTypeBlack];
+    [SVProgressHUD show];
     [self requestProductStateAndShowTip];
 }
 
 - (void)requestProductStateAndShowTip {
     if (sHasShownReloanTipThisLaunch) {
         self.isCheckingReloanTip = NO;
+        [SVProgressHUD dismiss];
         return;
     }
     NSDictionary *body = [[MKEncryptManager sharedManager] generateRequestBody:@{}];
@@ -480,37 +561,48 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
                                     params:body
                                    success:^(id resp) {
         __strong typeof(wself) sself = wself;
-        if (!sself) return;
+        if (!sself) { [SVProgressHUD dismiss]; return; }
         sself.isCheckingReloanTip = NO;
-        if (sHasShownReloanTipThisLaunch) return;
+        if (sHasShownReloanTipThisLaunch) { [SVProgressHUD dismiss]; return; }
 
         MKProductStateResponse *response = [[MKProductStateResponse alloc] initWithDictionary:resp];
-        if (![response isSuccess] || !response.data || response.data.amountDetailList.count == 0) return;
+        if (![response isSuccess] || !response.data || response.data.amountDetailList.count == 0) {
+            [SVProgressHUD dismiss]; return;
+        }
 
         MKProductStateDetailModel *detail = response.data.amountDetailList.firstObject;
-        if (detail.productName.length == 0 || detail.loanAmount.length == 0 || detail.productId.length == 0) return;
+        if (detail.productName.length == 0 || detail.loanAmount.length == 0 || detail.productId.length == 0) {
+            [SVProgressHUD dismiss]; return;
+        }
 
+        // 0.5s 延迟确保首页加载完成; 中间 dismiss HUD 由 showReloanAlertWithProductDetail 内部处理
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            if (sself.hasViewDisappeared) return;
-            if (sHasShownReloanTipThisLaunch) return;
+            if (sself.hasViewDisappeared || sHasShownReloanTipThisLaunch) {
+                [SVProgressHUD dismiss]; return;
+            }
             [sself showReloanAlertWithProductDetail:detail];
         });
     } failure:^(NSError *error) {
         __strong typeof(wself) sself = wself;
-        if (!sself) return;
+        if (!sself) { [SVProgressHUD dismiss]; return; }
         sself.isCheckingReloanTip = NO;
+        [SVProgressHUD dismiss];
     }];
 }
 
 - (void)showReloanAlertWithProductDetail:(MKProductStateDetailModel *)detail {
-    // 版本检查未完成 / 普升 / 待提现弹窗中 → 入队
+    // 版本检查未完成 / 普升 / 待提现弹窗中 → 入队, 释放 mask 给前一个弹窗用
     if (!self.isVersionCheckCompleted || self.isShowingNormalUpdateAlert || self.isShowingWithdrawalAlert) {
         __weak typeof(self) wself = self;
         [self enqueueAlert:^{ [wself showReloanAlertWithProductDetail:detail]; }];
+        [SVProgressHUD dismiss];
         return;
     }
-    if (sHasShownReloanTipThisLaunch) return;
+    if (sHasShownReloanTipThisLaunch) { [SVProgressHUD dismiss]; return; }
     sHasShownReloanTipThisLaunch = YES;
+
+    // 准备真正显示 sheet, 释放 mask
+    [SVProgressHUD dismiss];
 
     if (!self.reloanHandler) {
         self.reloanHandler = [[MKReloanFlowHandler alloc] init];
@@ -564,29 +656,99 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
 
 #pragma mark - MKSeamlessOrderManagerDelegate
 
+- (void)seamlessOrderManager:(id)manager didSubmitOrderSuccess:(NSString *)orderId {
+}
+
+- (void)seamlessOrderManager:(id)manager didUpdateContactUploadProgress:(NSInteger)progress {
+    [SVProgressHUD dismiss];
+    if (self.reloanHandler) [self.reloanHandler hideReloanTipAlert];
+    if (!self.dataCaptureSheet) {
+        self.dataCaptureSheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypeDataCapture config:nil];
+        [self.dataCaptureSheet show];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.dataCaptureSheet setDataCaptureProgress:progress animated:NO];
+        });
+    } else {
+        [self.dataCaptureSheet setDataCaptureProgress:progress animated:YES];
+    }
+}
+
 - (void)seamlessOrderManager:(id)manager didFailWithError:(NSError *)error {
     [SVProgressHUD dismiss];
-    NSString *msg = error.localizedDescription ?: @"Order failed";
-    [SVProgressHUD showErrorWithStatus:msg];
-    [SVProgressHUD dismissWithDelay:2.0];
+    [self dismissDataCaptureSheet];
     if (self.reloanHandler) [self.reloanHandler hideReloanTipAlert];
 }
 
 - (void)seamlessOrderManager:(id)manager didCompleteWithOrderId:(NSString *)orderId {
     [SVProgressHUD dismiss];
     if (self.reloanHandler) [self.reloanHandler hideReloanTipAlert];
-    // 完成后刷新首页数据
-    [self requestHomeData];
-    [self requestProductList];
+    [self dismissDataCaptureSheet];
+    [MKRatingPromptManager noteOrderCompleted];
+    __weak typeof(self) wself = self;
+    MKBottomSheetView *succ = [MKBottomSheetView sheetWithType:MKBottomSheetTypeApplySuccess config:nil];
+    succ.onConfirmTapped = ^{
+        __strong typeof(wself) sself = wself;
+        if (!sself) return;
+        [sself requestHomeData];
+        [sself requestProductList];
+        // 复借首单在首页直接完成, viewDidAppear 不会再触发, 这里主动消费标志
+        [sself consumePendingRatingPrompt];
+    };
+    [succ show];
 }
 
 - (void)seamlessOrderManager:(id)manager shouldShowMessage:(NSString *)message {
-    if (message.length > 0) [SVProgressHUD showInfoWithStatus:message];
+    // 从设置返回但未授权 / 系统定位首次拒绝等场景走这里; 必须收掉 loading, 复借弹窗保留可继续操作
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [SVProgressHUD dismiss];
+        // 定位相关消息不再弹 toast
+        if (message.length > 0 && [message rangeOfString:@"location" options:NSCaseInsensitiveSearch].location != NSNotFound) {
+            return;
+        }
+        if (message.length > 0) [SVProgressHUD showInfoWithStatus:message];
+    });
 }
 
+// 对齐 259 MainHomeViewController L1917-1938
 - (void)seamlessOrderManagerDidCancel:(id)manager {
     [SVProgressHUD dismiss];
+    [self dismissDataCaptureSheet];
     if (self.reloanHandler) [self.reloanHandler hideReloanTipAlert];
+    [[NSNotificationCenter defaultCenter] postNotificationName:MKSeamlessOrderDataCaptureCompletedNotification object:nil];
+}
+
+// 对齐 259 MainHomeViewController L1908 — 系统定位权限弹窗即将弹出:
+// 收掉 loading 让用户能操作系统弹窗, **保留复借弹窗**(系统拒后可重试)
+- (void)seamlessOrderManagerWillShowSystemLocationPermissionAlert:(id)manager {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [SVProgressHUD dismiss];
+    });
+}
+
+// 对齐 259 L1942 — 定位二弹 Cancel: 不 hide 复借弹窗(留给用户重试), 只收 HUD + mask
+- (void)seamlessOrderManagerDidCancelLocationPermission:(id)manager {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [SVProgressHUD dismiss];
+        [self dismissDataCaptureSheet];
+    });
+}
+
+// 对齐 259 MainHomeViewController L1960-1982 — 通讯录二弹 Cancel:
+// 订单已下完, 复借弹窗再点会撞 pending order → 隐藏复借弹窗 + 数据抓取 mask + HUD + 刷新首页
+- (void)seamlessOrderManagerDidCancelContactsPermission:(id)manager {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [SVProgressHUD dismiss];
+        [self dismissDataCaptureSheet];
+        if (self.reloanHandler) [self.reloanHandler hideReloanTipAlert];
+        [[NSNotificationCenter defaultCenter] postNotificationName:MKSeamlessOrderDataCaptureCompletedNotification object:nil];
+    });
+}
+
+- (void)dismissDataCaptureSheet {
+    if (self.dataCaptureSheet) {
+        [self.dataCaptureSheet dismiss];
+        self.dataCaptureSheet = nil;
+    }
 }
 
 #pragma mark - UITableView
