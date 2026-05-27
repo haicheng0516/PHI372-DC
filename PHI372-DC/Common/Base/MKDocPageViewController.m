@@ -77,13 +77,25 @@ typedef NS_ENUM(NSUInteger, MKDocItemKind) {
         make.left.right.bottom.equalTo(self.view);
     }];
 
-    CGFloat y = self.heroHeaderView ? CGRectGetMaxY(self.heroHeaderView.frame) - kNavBarHeight + kScaleH(16) : kScaleH(12);
-    CGFloat cardW = kScaleW(339);
-    CGFloat cardX = kScaleW(18);
-
     if (self.heroHeaderView) {
         [self.scrollView addSubview:self.heroHeaderView];
     }
+
+    [self renderDocItems];
+}
+
+- (void)reloadDocItems {
+    if (!self.scrollView) return;
+    for (UIView *sub in [self.scrollView.subviews copy]) {
+        if (sub != self.heroHeaderView) [sub removeFromSuperview];
+    }
+    [self renderDocItems];
+}
+
+- (void)renderDocItems {
+    CGFloat y = self.heroHeaderView ? CGRectGetMaxY(self.heroHeaderView.frame) - kNavBarHeight + kScaleH(16) : kScaleH(12);
+    CGFloat cardW = kScaleW(339);
+    CGFloat cardX = kScaleW(18);
 
     for (MKDocPageItem *it in self.items) {
         UIView *child = nil;

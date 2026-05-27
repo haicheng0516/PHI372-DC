@@ -27,6 +27,8 @@ NS_ASSUME_NONNULL_BEGIN
 /// 顶部 hero header (About 用 222pt header) — 设置后会替代 navTitle 区域内的标准 nav
 @property (nonatomic, strong, nullable) UIView *heroHeaderView;
 - (instancetype)initWithTitle:(NSString *)title items:(NSArray<MKDocPageItem *> *)items;
+/// 用新的 items 重渲染(异步配置到达后刷新页面)。需在 view 加载后调用。
+- (void)reloadDocItems;
 @end
 
 NS_ASSUME_NONNULL_END

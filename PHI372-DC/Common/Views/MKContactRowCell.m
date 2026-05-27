@@ -4,6 +4,7 @@
 
 #import "MKContactRowCell.h"
 #import "MKConstants.h"
+#import <SVProgressHUD/SVProgressHUD.h>
 
 @interface MKContactRowCell ()
 @property (nonatomic, strong) UIImageView *iconView;
@@ -60,7 +61,12 @@
 }
 
 - (void)copyTapped {
+    if (self.contactValue.length == 0) {
+        [SVProgressHUD showErrorWithStatus:@"No content to copy"];
+        return;
+    }
     UIPasteboard.generalPasteboard.string = self.contactValue;
+    [SVProgressHUD showSuccessWithStatus:@"Copied to clipboard"];
     if (self.onCopyTapped) self.onCopyTapped(self.contactValue);
 }
 @end

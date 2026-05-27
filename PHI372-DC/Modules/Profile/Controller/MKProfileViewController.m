@@ -26,6 +26,8 @@
 #import "MKSignInViewController.h"
 #import "MKNetworkManager.h"
 #import "MKEncryptManager.h"
+#import "MKAppConfigManager.h"
+#import "MKWebViewViewController.h"
 #import <SVProgressHUD/SVProgressHUD.h>
 
 #pragma mark - Menu Row
@@ -99,6 +101,12 @@
     [self setupBackButton];
 }
 
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    // 预拉协议/配置链接,供 Terms / Privacy 打开远程网页
+    [[MKAppConfigManager sharedManager] loadConfig];
+}
+
 - (void)buildItems {
     self.sections = @[
         @[ // Card 1 — 服务说明类
@@ -108,8 +116,8 @@
         ],
         @[ // Card 2 — 账号/法律/退出
             @{ @"title": @"About",                  @"symbol": @"person",                                @"cls": @"MKProfileAboutViewController" },
-            @{ @"title": @"Terms of the loan",      @"symbol": @"doc.plaintext",                         @"cls": @"MKProfileAgreementViewController" },
-            @{ @"title": @"Privacy policy",         @"symbol": @"lock.shield",                           @"cls": @"MKProfileAgreementViewController" },
+            @{ @"title": @"Terms of the loan",      @"symbol": @"doc.plaintext",                         @"cls": @"_WEB_TERMS_" },
+            @{ @"title": @"Privacy policy",         @"symbol": @"lock.shield",                           @"cls": @"_WEB_PRIVACY_" },
             @{ @"title": @"Log out",                @"symbol": @"rectangle.portrait.and.arrow.right",    @"cls": @"_LOGOUT_" },
         ],
     ];
@@ -217,10 +225,44 @@
         __weak typeof(self) wself = self;
         sheet.onConfirmTapped = ^{ [wself performLogout]; };
         [sheet show];
+    } else if ([cls isEqualToString:@"_WEB_TERMS_"]) {
+        [self openProtocol:NO];
+    } else if ([cls isEqualToString:@"_WEB_PRIVACY_"]) {
+        [self openProtocol:YES];
     } else {
         Class c = NSClassFromString(cls);
         if (c) [self.navigationController pushViewController:[c new] animated:YES];
     }
+}
+
+#pragma mark - 协议远程网页 (URL 来自 app/config)
+
+- (void)openProtocol:(BOOL)isPrivacy {
+    MKAppConfigModel *cfg = [MKAppConfigManager sharedManager].currentAppConfig;
+    NSString *url = isPrivacy ? cfg.policyHref : cfg.conditionsHref;
+    if (url.length) { [self pushWeb:url privacy:isPrivacy]; return; }
+
+    // 配置未就绪 → 拉一次再决定
+    [SVProgressHUD showWithStatus:@"Loading..."];
+    __weak typeof(self) wself = self;
+    [[MKAppConfigManager sharedManager] loadConfigWithCompletion:^(MKAppConfigModel *config) {
+        [SVProgressHUD dismiss];
+        NSString *u = isPrivacy ? config.policyHref : config.conditionsHref;
+        if (u.length) {
+            [wself pushWeb:u privacy:isPrivacy];
+        } else if (isPrivacy) {
+            [SVProgressHUD showInfoWithStatus:@"Content is temporarily unavailable"];
+        } else {
+            // Terms 兜底: 配置无链接时走原生协议页(本地内容,不回退到不可用)
+            [wself.navigationController pushViewController:[MKProfileAgreementViewController new] animated:YES];
+        }
+    }];
+}
+
+- (void)pushWeb:(NSString *)url privacy:(BOOL)isPrivacy {
+    NSString *title = isPrivacy ? @"Privacy Policy" : @"Terms of the loan";
+    MKWebViewViewController *web = [[MKWebViewViewController alloc] initWithURL:url title:title];
+    [self.navigationController pushViewController:web animated:YES];
 }
 
 #pragma mark - Logout
@@ -233,7 +275,6 @@
                                     params:body
                                    success:^(id resp) {
         NSInteger code = [resp[@"resultCode"] integerValue];
-        NSLog(@"[Logout] resp code=%ld msg=%@", (long)code, resp[@"resultMsg"]);
         [[MKLoginManager sharedManager] logout];
         if (code == 200) {
             [SVProgressHUD showSuccessWithStatus:@"Signed out"];
@@ -243,7 +284,6 @@
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.6 * NSEC_PER_SEC)),
                        dispatch_get_main_queue(), ^{ [wself goToSignIn]; });
     } failure:^(NSError *error) {
-        NSLog(@"[Logout] network fail, clearing local anyway: %@", error);
         [[MKLoginManager sharedManager] logout];
         [SVProgressHUD dismiss];
         [wself goToSignIn];

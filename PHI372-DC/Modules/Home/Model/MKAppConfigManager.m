@@ -4,6 +4,8 @@
 //
 
 #import "MKAppConfigManager.h"
+#import "MKNetworkManager.h"
+#import "MKEncryptManager.h"
 
 @implementation MKAppConfigManager
 + (instancetype)sharedManager {
@@ -12,4 +14,26 @@
     return inst;
 }
 - (BOOL)hasAppConfig { return self.currentAppConfig != nil; }
+
+- (void)loadConfig {
+    [self loadConfigWithCompletion:nil];
+}
+
+- (void)loadConfigWithCompletion:(void (^)(MKAppConfigModel *_Nullable))completion {
+    NSMutableDictionary *body = [[[MKEncryptManager sharedManager] generateRequestBody:@{}] mutableCopy];
+    body[@"merchantId"] = @"phi372-dc";   // TODO: 用户给真实商户号则替换(与 Home 保持一致)
+    __weak typeof(self) wself = self;
+    [[MKNetworkManager sharedManager] post:@"/app/v3/app/config"
+                                    params:body
+                                   success:^(id resp) {
+        MKAppConfigModel *config = nil;
+        if ([resp isKindOfClass:[NSDictionary class]] && [resp[@"data"] isKindOfClass:[NSDictionary class]]) {
+            config = [MKAppConfigModel modelWithDictionary:resp[@"data"]];
+            wself.currentAppConfig = config;
+        }
+        if (completion) completion(config);
+    } failure:^(NSError *error) {
+        if (completion) completion(nil);
+    }];
+}
 @end
