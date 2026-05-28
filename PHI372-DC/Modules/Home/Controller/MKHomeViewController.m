@@ -12,6 +12,7 @@
 #import "MKHomeDecorationCell.h"
 #import "MKHomeProductCell.h"
 #import "MKHomeKYCTipCardView.h"
+#import "MKRejectFlowCoordinator.h"
 #import "MKOrderListViewController.h"
 #import "MKOrderDetailViewController.h"
 #import "NSString+MKAmount.h"
@@ -481,6 +482,8 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
                 : MKLoanAmountSelectionModeMultiple;
             UIViewController *next = [[MKProductApplyViewController alloc] initWithTermData:termData mode:mode];
             [wself.navigationController pushViewController:next animated:YES];
+        } else if (code == 6234303 && [MKRejectFlowCoordinator shouldTriggerRejectFlow]) {
+            [MKRejectFlowCoordinator presentRejectH5FromVC:wself];
         } else if (code == 6230002 || code == 6230003) {
             [wself showExistingOrderAlert];
         } else {
