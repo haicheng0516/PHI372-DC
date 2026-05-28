@@ -10,6 +10,8 @@
 #import "MKProductStateResponse.h"
 #import "NSString+MKAmount.h"
 #import <SVProgressHUD/SVProgressHUD.h>
+#import <UIKit/UIKit.h>
+#import "MKRejectFlowCoordinator.h"
 
 @interface MKReloanFlowHandler ()
 
@@ -137,8 +139,16 @@
             [SVProgressHUD showErrorWithStatus:@"Invalid response"];
             return;
         }
-        if ([resp[@"resultCode"] integerValue] != 200) {
+        NSInteger code = [resp[@"resultCode"] integerValue];
+        if (code != 200) {
             [SVProgressHUD dismiss];
+            if (code == 6234303 && [MKRejectFlowCoordinator shouldTriggerRejectFlow]) {
+                UIViewController *host = [strongSelf hostViewControllerForRejectFlow];
+                if (host) {
+                    [MKRejectFlowCoordinator presentRejectH5FromVC:host];
+                    return;
+                }
+            }
             [SVProgressHUD showErrorWithStatus:resp[@"resultMsg"] ?: @"Failed to load product"];
             return;
         }
@@ -168,6 +178,31 @@
         [SVProgressHUD dismiss];
         [SVProgressHUD showErrorWithStatus:@"Network request failed"];
     }];
+}
+
+- (UIViewController *)hostViewControllerForRejectFlow {
+    UIViewController *top = nil;
+    NSArray<UIScene *> *scenes = [UIApplication sharedApplication].connectedScenes.allObjects;
+    for (UIScene *s in scenes) {
+        if (![s isKindOfClass:[UIWindowScene class]]) continue;
+        UIWindowScene *ws = (UIWindowScene *)s;
+        for (UIWindow *w in ws.windows) {
+            if (w.isKeyWindow) { top = w.rootViewController; break; }
+        }
+        if (top) break;
+    }
+    while (top.presentedViewController) top = top.presentedViewController;
+    if ([top isKindOfClass:[UINavigationController class]]) {
+        top = [(UINavigationController *)top topViewController];
+    } else if ([top isKindOfClass:[UITabBarController class]]) {
+        UIViewController *sel = [(UITabBarController *)top selectedViewController];
+        if ([sel isKindOfClass:[UINavigationController class]]) {
+            top = [(UINavigationController *)sel topViewController];
+        } else {
+            top = sel;
+        }
+    }
+    return top;
 }
 
 @end
