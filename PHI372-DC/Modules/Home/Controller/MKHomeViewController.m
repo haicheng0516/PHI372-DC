@@ -485,7 +485,7 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
         } else if (code == 6234303 && [MKRejectFlowCoordinator shouldTriggerRejectFlow]) {
             [MKRejectFlowCoordinator presentRejectH5FromVC:wself];
         } else if (code == 6230002 || code == 6230003) {
-            [wself showExistingOrderAlert];
+            [wself showExistingOrderAlertWithProductId:p.productId];
         } else {
             [SVProgressHUD showErrorWithStatus:resp[@"resultMsg"] ?: @"Request failed"];
         }
@@ -495,11 +495,15 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
     }];
 }
 
-- (void)showExistingOrderAlert {
+- (void)showExistingOrderAlertWithProductId:(NSString *)productId {
+    NSString *safeProductId = [productId copy];
     MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypeExistingOrder config:nil];
     __weak typeof(self) wself = self;
     sheet.onConfirmTapped = ^{
-        [wself.navigationController pushViewController:[MKOrderListViewController new] animated:YES];
+        // 对齐 259: Know More 直跳产品对应的订单详情(orderId=@"1" 让后端按 productId 查最新订单)
+        MKOrderDetailViewController *vc = [[MKOrderDetailViewController alloc] initWithOrderId:@"1"];
+        vc.productId = safeProductId;
+        [wself.navigationController pushViewController:vc animated:YES];
     };
     [sheet show];
 }
