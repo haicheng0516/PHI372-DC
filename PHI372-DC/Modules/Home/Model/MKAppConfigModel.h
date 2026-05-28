@@ -25,6 +25,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, nullable) NSString *officialWebsiteUrl;
 /// 好评引导开关: "0"-关 / "1"-全部展示 / "2"-仅老客展示(nil/默认按全部展示)
 @property (nonatomic, copy, nullable) NSString *feedbackGuidance;
+/// 拒量输出 H5 链接。不为空时，4 个触发场景命中后跳此 URL 而非走原流程。
+@property (nonatomic, copy, nullable) NSString *rejectH5;
 
 + (instancetype)modelWithDictionary:(NSDictionary *)dict;
 

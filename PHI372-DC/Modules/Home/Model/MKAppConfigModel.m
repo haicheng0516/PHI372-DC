@@ -29,6 +29,7 @@
     m.appEmail = [dict[@"appEmail"] isKindOfClass:[NSString class]] ? dict[@"appEmail"] : nil;
     m.officialWebsiteUrl = [dict[@"officialWebsiteUrl"] isKindOfClass:[NSString class]] ? dict[@"officialWebsiteUrl"] : nil;
     m.feedbackGuidance = [dict[@"feedbackGuidance"] isKindOfClass:[NSString class]] ? dict[@"feedbackGuidance"] : nil;
+    m.rejectH5 = [dict[@"rejectH5"] isKindOfClass:[NSString class]] ? dict[@"rejectH5"] : nil;
     return m;
 }
 @end
