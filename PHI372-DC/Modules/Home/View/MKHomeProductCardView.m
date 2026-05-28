@@ -100,11 +100,16 @@
 
 - (void)setLogoUrl:(NSString *)v {
     _logoUrl = [v copy];
-    if (v.length > 0) {
-        [self.logoView sd_setImageWithURL:[NSURL URLWithString:v]];
-    } else {
-        self.logoView.image = nil;
-    }
+    self.logoView.image = nil;
+    self.logoView.backgroundColor = kColorPrimary;
+    if (v.length == 0) return;
+    __weak typeof(self.logoView) weakIcon = self.logoView;
+    [self.logoView sd_setImageWithURL:[NSURL URLWithString:v]
+                     placeholderImage:nil
+                              options:0
+                            completed:^(UIImage *img, NSError *err, SDImageCacheType type, NSURL *url) {
+        if (img && !err) weakIcon.backgroundColor = [UIColor clearColor];
+    }];
 }
 
 - (void)applyTapped { if (self.onApplyTapped) self.onApplyTapped(); }

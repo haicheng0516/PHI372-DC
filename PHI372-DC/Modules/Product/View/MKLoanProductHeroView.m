@@ -49,7 +49,7 @@ static const CGFloat kY0 = 106.0;
 
 - (void)buildCompact {
     _iconBox = [UIImageView new];
-    _iconBox.backgroundColor = kColorWhite;
+    _iconBox.backgroundColor = kColorPrimary;   // 无图/加载失败的兜底色块, 加载成功后切 clear
     _iconBox.layer.cornerRadius = kScaleH(7);
     _iconBox.layer.masksToBounds = YES;
     _iconBox.contentMode = UIViewContentModeScaleAspectFit;
@@ -117,7 +117,7 @@ static const CGFloat kY0 = 106.0;
 
 - (void)buildFull {
     _iconBox = [UIImageView new];
-    _iconBox.backgroundColor = kColorWhite;
+    _iconBox.backgroundColor = kColorPrimary;   // 无图/加载失败的兜底色块, 加载成功后切 clear
     _iconBox.layer.cornerRadius = kScaleH(7);
     _iconBox.layer.masksToBounds = YES;
     _iconBox.contentMode = UIViewContentModeScaleAspectFit;
@@ -214,8 +214,17 @@ static const CGFloat kY0 = 106.0;
 }
 
 - (void)setProductLogoURL:(NSString *)urlStr {
-    if (urlStr.length == 0) { _iconBox.image = nil; return; }
-    [_iconBox sd_setImageWithURL:[NSURL URLWithString:urlStr]];
+    _iconBox.image = nil;
+    _iconBox.backgroundColor = kColorPrimary;
+    if (urlStr.length == 0) return;
+    __weak typeof(_iconBox) weakIcon = _iconBox;
+    [_iconBox sd_setImageWithURL:[NSURL URLWithString:urlStr]
+                placeholderImage:nil
+                         options:0
+                       completed:^(UIImage *img, NSError *err, SDImageCacheType type, NSURL *url) {
+        // 加载成功才隐藏背景色; 失败保留绿色兜底块
+        if (img && !err) weakIcon.backgroundColor = [UIColor clearColor];
+    }];
 }
 
 - (void)setIsMultiAmount:(BOOL)isMultiAmount {
