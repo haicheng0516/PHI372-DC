@@ -6,6 +6,7 @@
 //
 
 #import "AppDelegate.h"
+#import <SVProgressHUD/SVProgressHUD.h>
 
 @interface AppDelegate ()
 
@@ -15,7 +16,9 @@
 
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-    // Override point for customization after application launch.
+    // SVProgressHUD 全局显示时长(默认 minimum=5s 偏长, 收紧到 1.5~3s)
+    [SVProgressHUD setMinimumDismissTimeInterval:1.5];
+    [SVProgressHUD setMaximumDismissTimeInterval:3.0];
     return YES;
 }
 
