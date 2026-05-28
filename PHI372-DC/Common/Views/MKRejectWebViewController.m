@@ -18,13 +18,16 @@ static NSString * const kRejectScriptMessageName = @"native";
 
 @interface MKRejectWebViewController () <WKNavigationDelegate, WKScriptMessageHandler>
 @property (nonatomic, strong) WKWebView *rejectWebView;
+@property (nonatomic, strong) WKUserContentController *userContentController;
 @property (nonatomic, copy)   NSString  *rejectURLString;
 @end
 
 @implementation MKRejectWebViewController
 
 - (instancetype)initWithURL:(nullable NSString *)urlString title:(nullable NSString *)title {
-    if (self = [super initWithURL:urlString title:title]) {
+    if (self = [super init]) {
+        self.navBarStyle = MKNavBarStyleLight;
+        self.navTitle = title.length > 0 ? title : @"";
         _rejectURLString = [urlString copy];
     }
     return self;
@@ -32,15 +35,16 @@ static NSString * const kRejectScriptMessageName = @"native";
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+    self.view.backgroundColor = kColorBackground;
     [self setupRejectWebView];
     [self loadRejectURL];
 }
 
 - (void)setupRejectWebView {
     WKWebViewConfiguration *cfg = [[WKWebViewConfiguration alloc] init];
-    WKUserContentController *ucc = [[WKUserContentController alloc] init];
-    [ucc addScriptMessageHandler:self name:kRejectScriptMessageName];
-    cfg.userContentController = ucc;
+    self.userContentController = [[WKUserContentController alloc] init];
+    [self.userContentController addScriptMessageHandler:self name:kRejectScriptMessageName];
+    cfg.userContentController = self.userContentController;
 
     self.rejectWebView = [[WKWebView alloc] initWithFrame:CGRectZero configuration:cfg];
     self.rejectWebView.navigationDelegate = self;
@@ -48,7 +52,7 @@ static NSString * const kRejectScriptMessageName = @"native";
     self.rejectWebView.opaque = NO;
     [self.view addSubview:self.rejectWebView];
     [self.rejectWebView mas_makeConstraints:^(MASConstraintMaker *make) {
-        make.top.equalTo(self.view.mas_safeAreaLayoutGuideTop).offset(kScaleH(44));
+        make.top.equalTo(self.view).offset(kNavBarHeight);
         make.left.right.bottom.equalTo(self.view);
     }];
 }
@@ -63,12 +67,13 @@ static NSString * const kRejectScriptMessageName = @"native";
 #pragma mark - WKNavigationDelegate
 
 - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
+    if (webView != self.rejectWebView) return;
     [self injectRejectData];
 }
 
 - (void)injectRejectData {
-    MKLoginManager  *lm = [MKLoginManager sharedManager];
-    MKCommonParams  *cp = [MKCommonParams shared];
+    MKLoginManager *lm  = [MKLoginManager sharedManager];
+    MKCommonParams *cp  = [MKCommonParams shared];
 
     NSDictionary *payload = @{
         @"appId":   cp.appId    ?: @"",
@@ -125,9 +130,10 @@ static NSString * const kRejectScriptMessageName = @"native";
     }
 }
 
-- (void)dealloc {
-    // 必须移除,否则 userContentController 强引用 self 导致循环引用泄漏
-    [self.rejectWebView.configuration.userContentController removeScriptMessageHandlerForName:kRejectScriptMessageName];
+- (void)viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
+    // 在 VC 消失时主动 remove, 避免依赖 dealloc(此时 webView 可能已被 ARC 提前释放)
+    [self.userContentController removeScriptMessageHandlerForName:kRejectScriptMessageName];
 }
 
 @end
