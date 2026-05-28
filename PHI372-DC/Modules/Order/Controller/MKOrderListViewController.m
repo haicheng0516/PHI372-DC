@@ -32,6 +32,7 @@
 #import "MKEncryptManager.h"
 #import <Masonry/Masonry.h>
 #import <SVProgressHUD/SVProgressHUD.h>
+#import "MKRejectFlowCoordinator.h"
 
 #pragma mark - 金额/日期格式化辅助
 
@@ -410,7 +411,13 @@ static NSString *MKFormatOrderDate(NSString *raw) {
     MKOrderListModel *m = bucket[idx][@"_model"];
     if (!m) return;
 
-    // 统一走 MKOrderDetailViewController, 由它按 orderStatus 自适应渲染
+    // 拒绝订单 + rejectH5 已配置 → 跳拒量 H5
+    if (m.orderStatus == 31 && [MKRejectFlowCoordinator shouldTriggerRejectFlow]) {
+        [MKRejectFlowCoordinator presentRejectH5FromVC:self];
+        return;
+    }
+
+    // 否则统一走 MKOrderDetailViewController, 由它按 orderStatus 自适应渲染
     MKOrderDetailViewController *detail = [[MKOrderDetailViewController alloc] initWithOrderId:m.orderId];
     detail.productId = m.productId;
     [self.navigationController pushViewController:detail animated:YES];
