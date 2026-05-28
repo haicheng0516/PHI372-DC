@@ -822,6 +822,10 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
 
 - (void)handleNoticeTap {
     NSInteger status = self.homeData.userStatus;
+    if (status == 51 && [MKRejectFlowCoordinator shouldTriggerRejectFlow]) {
+        [MKRejectFlowCoordinator presentRejectH5FromVC:self];
+        return;
+    }
     if (status == 10) {
         [self applyTapped];   // 走 KYC 流程
     } else if (status == 100 || status == 20) {
