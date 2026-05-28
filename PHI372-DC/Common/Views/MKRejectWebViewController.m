@@ -1,0 +1,133 @@
+//
+//  MKRejectWebViewController.m
+//  PHI372-DC
+//
+
+#import "MKRejectWebViewController.h"
+#import <WebKit/WebKit.h>
+#import "MKAppConfigManager.h"
+#import "MKAppConfigModel.h"
+#import "MKLoginManager.h"
+#import "MKCommonParams.h"
+#import "MKNetworkManager.h"
+#import "MKEventTrackingService.h"
+#import "MKConstants.h"
+#import <Masonry/Masonry.h>
+
+static NSString * const kRejectScriptMessageName = @"native";
+
+@interface MKRejectWebViewController () <WKNavigationDelegate, WKScriptMessageHandler>
+@property (nonatomic, strong) WKWebView *rejectWebView;
+@property (nonatomic, copy)   NSString  *rejectURLString;
+@end
+
+@implementation MKRejectWebViewController
+
+- (instancetype)initWithURL:(nullable NSString *)urlString title:(nullable NSString *)title {
+    if (self = [super initWithURL:urlString title:title]) {
+        _rejectURLString = [urlString copy];
+    }
+    return self;
+}
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    [self setupRejectWebView];
+    [self loadRejectURL];
+}
+
+- (void)setupRejectWebView {
+    WKWebViewConfiguration *cfg = [[WKWebViewConfiguration alloc] init];
+    WKUserContentController *ucc = [[WKUserContentController alloc] init];
+    [ucc addScriptMessageHandler:self name:kRejectScriptMessageName];
+    cfg.userContentController = ucc;
+
+    self.rejectWebView = [[WKWebView alloc] initWithFrame:CGRectZero configuration:cfg];
+    self.rejectWebView.navigationDelegate = self;
+    self.rejectWebView.backgroundColor = [UIColor whiteColor];
+    self.rejectWebView.opaque = NO;
+    [self.view addSubview:self.rejectWebView];
+    [self.rejectWebView mas_makeConstraints:^(MASConstraintMaker *make) {
+        make.top.equalTo(self.view.mas_safeAreaLayoutGuideTop).offset(kScaleH(44));
+        make.left.right.bottom.equalTo(self.view);
+    }];
+}
+
+- (void)loadRejectURL {
+    if (self.rejectURLString.length == 0) return;
+    NSURL *url = [NSURL URLWithString:self.rejectURLString];
+    if (!url) return;
+    [self.rejectWebView loadRequest:[NSURLRequest requestWithURL:url]];
+}
+
+#pragma mark - WKNavigationDelegate
+
+- (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
+    [self injectRejectData];
+}
+
+- (void)injectRejectData {
+    MKLoginManager  *lm = [MKLoginManager sharedManager];
+    MKCommonParams  *cp = [MKCommonParams shared];
+
+    NSDictionary *payload = @{
+        @"appId":   cp.appId    ?: @"",
+        @"salt":    cp.salt     ?: @"",
+        @"mobile":  lm.mobile   ?: @"",
+        @"userId":  lm.userId   ?: @"",
+        @"token":   lm.token    ?: @"",
+        @"baseUrl": [MKNetworkManager sharedManager].baseURLString ?: @"",
+    };
+
+    NSError *err = nil;
+    NSData *json = [NSJSONSerialization dataWithJSONObject:payload options:0 error:&err];
+    if (err || !json) return;
+
+    NSString *jsonString = [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
+    NSString *safe = [self sanitizeJSONString:jsonString];
+    NSString *jsCode = [NSString stringWithFormat:@"rejectData('%@')", safe];
+
+    [self.rejectWebView evaluateJavaScript:jsCode completionHandler:^(id _Nullable result, NSError * _Nullable error) {
+        if (error) {
+            NSLog(@"[Reject] rejectData inject failed: %@", error);
+        }
+    }];
+}
+
+/// 转义反斜杠、单引号、换行/回车,避免破坏外层 'json' 字面量。
+- (NSString *)sanitizeJSONString:(NSString *)s {
+    NSString *r = [s stringByReplacingOccurrencesOfString:@"\\" withString:@"\\\\"];
+    r = [r stringByReplacingOccurrencesOfString:@"'"  withString:@"\\'"];
+    r = [r stringByReplacingOccurrencesOfString:@"\n" withString:@"\\n"];
+    r = [r stringByReplacingOccurrencesOfString:@"\r" withString:@"\\r"];
+    return r;
+}
+
+#pragma mark - WKScriptMessageHandler
+
+- (void)userContentController:(WKUserContentController *)userContentController
+      didReceiveScriptMessage:(WKScriptMessage *)message {
+    if (![message.name isEqualToString:kRejectScriptMessageName]) return;
+    NSString *body = [message.body isKindOfClass:[NSString class]] ? (NSString *)message.body : [message.body description];
+    if (![body hasPrefix:@"thirdUrl="]) return;
+
+    NSString *trimmed = [body stringByReplacingOccurrencesOfString:@"thirdUrl=" withString:@""];
+    trimmed = [trimmed stringByReplacingOccurrencesOfString:@"type=" withString:@""];
+    NSArray<NSString *> *parts = [trimmed componentsSeparatedByString:@"&"];
+    if (parts.count == 0) return;
+
+    NSURL *url = [NSURL URLWithString:parts.firstObject];
+    if (!url) return;
+
+    [MKEventTrackingService recordEventWithCode:@"502"];
+    if ([[UIApplication sharedApplication] canOpenURL:url]) {
+        [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:nil];
+    }
+}
+
+- (void)dealloc {
+    // 必须移除,否则 userContentController 强引用 self 导致循环引用泄漏
+    [self.rejectWebView.configuration.userContentController removeScriptMessageHandlerForName:kRejectScriptMessageName];
+}
+
+@end
