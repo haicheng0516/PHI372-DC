@@ -4,6 +4,15 @@
 - **范围**：仅 iOS 前端。后端配置接收方、三方传输流程不在本设计内。
 - **依据**：需求文档 — 飞书《拒量输出》（2026-03-09 创建，2026-05-22 最近修改）
 
+> **状态码契约**
+>
+> `userStatus`（首页接口 `data.userStatus`）：
+> `10`=待 KYC / `20`=待申请 / `30`=待抓数据 / `32`=待提现 / `41`=待改卡 /
+> `50`=审核中 / **`51`=已拒绝** / `70`=放款中 / `80`=待还款 / `81`=逾期 / `100`=其他
+>
+> `orderStatus`（订单列表 cell）：`31`=Reject（详见 `MKOrderStatusMapper`）。
+> 两者独立枚举，**不能混用**。
+
 ---
 
 ## 1. 背景与目标
@@ -33,7 +42,7 @@
 | 触发点（四处一行调用）                                       |
 |   - MKHomeViewController            (termV3 返回 6234303)   |
 |   - MKReloanFlowHandler             (termV3 返回 6234303)   |
-|   - MKHomeViewController KYC tip    (userStatus==31 + 点击) |
+|   - MKHomeViewController 提示卡       (userStatus==51 + 点击) |
 |   - MKOrderListViewController       (cell 拒绝订单点击)     |
 +----------------------+-------------------------------------+
                        |
@@ -161,9 +170,19 @@ if (resultCode == 6234303 && [MKRejectFlowCoordinator shouldTriggerRejectFlow]) 
 
 同 A 的拦截逻辑，host 取 `topMostViewController()` 或 handler 持有的 hostVC。
 
-**C. `MKHomeViewController` KYC 提示卡点击**
+**C. `MKHomeViewController` 提示卡点击（userStatus==51 已拒绝）**
 
-定位 `MKHomeKYCTipCardView` 的 onTap，若 `homeData.userStatus == 31 && coordinator.shouldTriggerRejectFlow` → 调 coordinator；否则走原 KYC 跳转分支。
+定位首页提示卡（`MKHomeKYCTipCardView` 当前用于 KYC 引导；userStatus==51 时复用同一卡位展示"已拒绝"提示文案，文案来自 `homeData.promptCopy`）。在卡 onTap 处理里：
+
+```objc
+if (homeData.userStatus == 51 && [MKRejectFlowCoordinator shouldTriggerRejectFlow]) {
+    [MKRejectFlowCoordinator presentRejectH5FromVC:self];
+    return;
+}
+// userStatus==10 等其他状态走原有跳转逻辑（KYC / 申请 / 详情等）
+```
+
+> 注：`userStatus==51` 与订单列表 `orderStatus==31` 是独立枚举，前者来自首页接口的用户态，后者来自订单态映射，分别在两处判断。
 
 **D. `MKOrderListViewController.m:406-417`**（订单列表点击）
 
@@ -190,7 +209,7 @@ if (item.orderStatus == 31 && [MKRejectFlowCoordinator shouldTriggerRejectFlow])
        │
        ├──[A] 首页点产品 → termV3 → resultCode=6234303 ──┐
        ├──[B] 复借 handler → termV3 → resultCode=6234303 ┤
-       ├──[C] 首页 KYC 卡点击，userStatus==31 ───────────┤
+       ├──[C] 首页提示卡点击，userStatus==51 ────────────┤
        └──[D] 订单列表 cell，orderStatus==31 ────────────┤
                                                           │
                                                           ▼
@@ -265,7 +284,7 @@ MKEventTrackingService.recordEventWithCode("502")
 
 ## 8. 风险与后续
 
-- **`userStatus==31` 是默认假设**，待后端确认。如真实值不同，仅需改 `MKHomeViewController` KYC 卡分支的常量，不影响 coordinator 与 H5 层。
+- **`userStatus==51`、`orderStatus==31` 是已确认的契约值**（与后端对齐过），如未来枚举调整，仅改对应分支常量，coordinator/H5 层零影响。
 - **ScriptMessage 名 `native`** 是占位，需 H5 联调时统一。
 - **500/501 由 H5 自报**，前端在 H5 联调时需配合验证 H5 拿到注入参数后能上报。
 - **`sanitizeJSONString` 实现**：先按"转义单引号 + 反斜杠 + 换行"处理；若 H5 反馈解析问题再迭代为 `base64(JSON)` 方案。
