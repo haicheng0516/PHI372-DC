@@ -14,6 +14,7 @@
 #import "MKConstants.h"
 #import <Masonry/Masonry.h>
 
+/// H5 ScriptMessage 名。H5 联调时需确认与前端约定值一致(占位 native)。
 static NSString * const kRejectScriptMessageName = @"native";
 
 @interface MKRejectWebViewController () <WKNavigationDelegate, WKScriptMessageHandler>
@@ -116,12 +117,15 @@ static NSString * const kRejectScriptMessageName = @"native";
     NSString *body = [message.body isKindOfClass:[NSString class]] ? (NSString *)message.body : [message.body description];
     if (![body hasPrefix:@"thirdUrl="]) return;
 
-    NSString *trimmed = [body stringByReplacingOccurrencesOfString:@"thirdUrl=" withString:@""];
-    trimmed = [trimmed stringByReplacingOccurrencesOfString:@"type=" withString:@""];
-    NSArray<NSString *> *parts = [trimmed componentsSeparatedByString:@"&"];
-    if (parts.count == 0) return;
+    // 协议: "thirdUrl=URL&type=TYPE", 按 & 分项后取首项的 thirdUrl= 值,
+    // 不用全局替换"type="(URL 自身可能含 type 查询参数, 会被误删)
+    NSArray<NSString *> *parts = [body componentsSeparatedByString:@"&"];
+    NSString *firstPart = parts.firstObject;
+    if (![firstPart hasPrefix:@"thirdUrl="]) return;
+    NSString *urlString = [firstPart substringFromIndex:@"thirdUrl=".length];
+    if (urlString.length == 0) return;
 
-    NSURL *url = [NSURL URLWithString:parts.firstObject];
+    NSURL *url = [NSURL URLWithString:urlString];
     if (!url) return;
 
     [MKEventTrackingService recordEventWithCode:@"502"];

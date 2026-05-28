@@ -56,7 +56,7 @@
                         v
         +-------------------------------+
         | MKRejectWebViewController     |
-        |   : MKWebViewViewController   |
+        |   : MKBaseViewController      |
         |  - WKNavigationDelegate       |
         |    didFinish → rejectData(…)  |
         |  - WKScriptMessageHandler     |
@@ -113,7 +113,9 @@
 
 文件位置：`PHI372-DC/Common/Views/MKRejectWebViewController.{h,m}`
 
-继承 `MKWebViewViewController`。**只覆写两件事**：
+继承 `MKBaseViewController`（实施阶段从原 spec 的 `MKWebViewViewController` 改下来，
+父类 viewDidLoad 强制建 webView + loadRequest 且 ivar 私有，会导致双 WKWebView
+实例与 URL 双重加载，详见 commit 4cc9ca9）。自建 WKWebView 并：
 
 1. 在 `viewDidLoad` 中向 `WKWebViewConfiguration.userContentController` 注册 `addScriptMessageHandler:self name:@"native"`（具体 name 待 H5 联调确认，先用 `native`）
 2. 重写 `webView:didFinishNavigation:`：成功加载后构造 JSON 并 `evaluateJavaScript:@"rejectData('<json>')"`
@@ -152,7 +154,7 @@ ScriptMessageHandler 回调：
 }
 ```
 
-**生命周期注意**：`dealloc` 中必须 `removeScriptMessageHandlerForName:@"native"`，否则 userContentController 会强引用 self 导致循环引用泄漏。
+**生命周期注意**：在 `viewWillDisappear:` 中主动 `removeScriptMessageHandlerForName:@"native"`，**不依赖 dealloc**（WKWebView 引用环可能让 dealloc 不及时触发）。`userContentController` 独立持有为 property，避免 dealloc 时 webView 已被 ARC 释放访问到 nil 失效。
 
 ### 3.4 触发点改造
 
