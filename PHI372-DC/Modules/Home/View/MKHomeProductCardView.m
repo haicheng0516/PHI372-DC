@@ -2,7 +2,7 @@
 
 #import "MKHomeProductCardView.h"
 #import "MKConstants.h"
-#import <SDWebImage/UIImageView+WebCache.h>
+#import "UIImageView+MKProductLogo.h"
 
 #define S(v) ((v) * kScale)
 
@@ -99,16 +99,7 @@
 
 - (void)setLogoUrl:(NSString *)v {
     _logoUrl = [v copy];
-    self.logoView.image = nil;
-    self.logoView.backgroundColor = kColorPrimary;
-    if (v.length == 0) return;
-    __weak typeof(self.logoView) weakIcon = self.logoView;
-    [self.logoView sd_setImageWithURL:[NSURL URLWithString:v]
-                     placeholderImage:nil
-                              options:0
-                            completed:^(UIImage *img, NSError *err, SDImageCacheType type, NSURL *url) {
-        if (img && !err) weakIcon.backgroundColor = [UIColor clearColor];
-    }];
+    [self.logoView mk_setProductLogoURL:v fallbackColor:kColorPrimary];
 }
 
 - (void)applyTapped { if (self.onApplyTapped) self.onApplyTapped(); }

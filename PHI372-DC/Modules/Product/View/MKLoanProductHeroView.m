@@ -3,7 +3,7 @@
 
 #import "MKLoanProductHeroView.h"
 #import "MKConstants.h"
-#import <SDWebImage/SDWebImage.h>
+#import "UIImageView+MKProductLogo.h"
 
 static const CGFloat kY0 = 106.0;
 
@@ -213,17 +213,7 @@ static const CGFloat kY0 = 106.0;
 }
 
 - (void)setProductLogoURL:(NSString *)urlStr {
-    _iconBox.image = nil;
-    _iconBox.backgroundColor = kColorPrimary;
-    if (urlStr.length == 0) return;
-    __weak typeof(_iconBox) weakIcon = _iconBox;
-    [_iconBox sd_setImageWithURL:[NSURL URLWithString:urlStr]
-                placeholderImage:nil
-                         options:0
-                       completed:^(UIImage *img, NSError *err, SDImageCacheType type, NSURL *url) {
-        // 加载成功才隐藏背景色; 失败保留绿色兜底块
-        if (img && !err) weakIcon.backgroundColor = [UIColor clearColor];
-    }];
+    [_iconBox mk_setProductLogoURL:urlStr fallbackColor:kColorPrimary];
 }
 
 - (void)setIsMultiAmount:(BOOL)isMultiAmount {
