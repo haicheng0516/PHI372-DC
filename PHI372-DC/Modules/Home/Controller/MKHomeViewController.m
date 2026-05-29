@@ -482,8 +482,8 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
                 : MKLoanAmountSelectionModeMultiple;
             UIViewController *next = [[MKProductApplyViewController alloc] initWithTermData:termData mode:mode];
             [wself.navigationController pushViewController:next animated:YES];
-        } else if (code == 6234303 && [MKRejectFlowCoordinator shouldTriggerRejectFlow]) {
-            [MKRejectFlowCoordinator presentRejectH5FromVC:wself];
+        } else if (code == 6234303 && [MKRejectFlowCoordinator presentRejectH5FromVC:wself]) {
+            // 已接管, 跳到拒量 H5
         } else if (code == 6230002 || code == 6230003) {
             [wself showExistingOrderAlertWithProductId:p.productId];
         } else {
@@ -826,10 +826,7 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
 
 - (void)handleNoticeTap {
     NSInteger status = self.homeData.userStatus;
-    if (status == 51 && [MKRejectFlowCoordinator shouldTriggerRejectFlow]) {
-        [MKRejectFlowCoordinator presentRejectH5FromVC:self];
-        return;
-    }
+    if (status == 51 && [MKRejectFlowCoordinator presentRejectH5FromVC:self]) return;
     if (status == 10) {
         [self applyTapped];   // 走 KYC 流程
     } else if (status == 100 || status == 20) {

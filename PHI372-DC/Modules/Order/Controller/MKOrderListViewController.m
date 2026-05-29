@@ -412,10 +412,7 @@ static NSString *MKFormatOrderDate(NSString *raw) {
     if (!m) return;
 
     // 拒绝订单 + rejectH5 已配置 → 跳拒量 H5
-    if (m.orderStatus == 31 && [MKRejectFlowCoordinator shouldTriggerRejectFlow]) {
-        [MKRejectFlowCoordinator presentRejectH5FromVC:self];
-        return;
-    }
+    if (m.orderStatus == 31 && [MKRejectFlowCoordinator presentRejectH5FromVC:self]) return;
 
     // 否则统一走 MKOrderDetailViewController, 由它按 orderStatus 自适应渲染
     MKOrderDetailViewController *detail = [[MKOrderDetailViewController alloc] initWithOrderId:m.orderId];
