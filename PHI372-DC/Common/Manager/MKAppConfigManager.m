@@ -6,6 +6,7 @@
 #import "MKAppConfigManager.h"
 #import "MKNetworkManager.h"
 #import "MKEncryptManager.h"
+#import "MKAppEnvironment.h"
 
 @implementation MKAppConfigManager
 + (instancetype)sharedManager {
@@ -21,7 +22,7 @@
 
 - (void)loadConfigWithCompletion:(void (^)(MKAppConfigModel *_Nullable))completion {
     NSMutableDictionary *body = [[[MKEncryptManager sharedManager] generateRequestBody:@{}] mutableCopy];
-    body[@"merchantId"] = @"phi372-dc";   // TODO: 用户给真实商户号则替换(与 Home 保持一致)
+    body[@"merchantId"] = [MKAppEnvironment merchantId];
     __weak typeof(self) wself = self;
     [[MKNetworkManager sharedManager] post:@"/app/v3/app/config"
                                     params:body

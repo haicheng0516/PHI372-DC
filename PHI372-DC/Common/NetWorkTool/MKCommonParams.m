@@ -6,10 +6,7 @@
 #import "MKCommonParams.h"
 #import <UIKit/UIKit.h>
 #import "MKConstants.h"
-
-/// PHI372-DC 项目配置
-static NSString * const kMKAppID = @"phi372-dc";
-static NSString * const kMKSalt  = @"qdaGzDWaf2plCOcP";
+#import "MKAppEnvironment.h"
 
 @implementation MKCommonParams
 
@@ -21,11 +18,11 @@ static NSString * const kMKSalt  = @"qdaGzDWaf2plCOcP";
 
         NSDictionary *infoDictionary = [[NSBundle mainBundle] infoDictionary];
         NSString *appVersion = infoDictionary[@"CFBundleShortVersionString"] ?: @"1.0.0";
-        // 用 MKAppDisplayName(): 工程名兜底字符串(PHI372-DC)在网络层 appName 字段不应泄露
+        // 走 MKAppDisplayName 读 Info.plist 的展示名, 不用工程名兜底
         NSString *appName = MKAppDisplayName();
 
-        cfg.appId = kMKAppID;
-        cfg.salt = kMKSalt;
+        cfg.appId = [MKAppEnvironment appId];
+        cfg.salt = [MKAppEnvironment salt];
         cfg.secretKey = @"";
         cfg.channel = @"app_store";
         cfg.clientVersion = appVersion;

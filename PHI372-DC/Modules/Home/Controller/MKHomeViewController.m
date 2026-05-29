@@ -13,6 +13,7 @@
 #import "MKHomeProductCell.h"
 #import "MKHomeKYCTipCardView.h"
 #import "MKRejectFlowCoordinator.h"
+#import "MKAppEnvironment.h"
 #import "MKOrderListViewController.h"
 #import "MKOrderDetailViewController.h"
 #import "NSString+MKAmount.h"
@@ -331,7 +332,7 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
 
 - (void)requestAppConfig {
     NSMutableDictionary *body = [[[MKEncryptManager sharedManager] generateRequestBody:@{}] mutableCopy];
-    body[@"merchantId"] = @"phi372-dc";   // TODO: 用户后续给真实商户号则替换
+    body[@"merchantId"] = [MKAppEnvironment merchantId];
     __weak typeof(self) wself = self;
     [[MKNetworkManager sharedManager] post:@"/app/v3/app/config"
                                     params:body

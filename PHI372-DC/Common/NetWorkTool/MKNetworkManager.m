@@ -1,9 +1,8 @@
 //  MKNetworkManager.m
-//  PHI372-DC
 //    - JSON 上行/下行用 AFJSONRequest/ResponseSerializer
 //    - 每次请求 setValue UA forHTTPHeaderField
 //    - 全局 resultCode 拦截: 2000001/2000002/2002001 → 重新登录; 2009006 → 强更
-//    - 强更弹窗用 MKBottomSheetView (替代 334 的 )
+//    - 强更弹窗用 MKBottomSheetView
 
 #import "MKNetworkManager.h"
 #import <AFNetworking/AFNetworking.h>
@@ -16,6 +15,7 @@
 #import "MKSignInViewController.h"
 #import "MKAppVersionResponse.h"
 #import "MKBottomSheetView.h"
+#import "MKAppEnvironment.h"
 
 // 需要重登的 resultCode (token 过期/被踢)
 static NSArray<NSString *> *kMKNeedLoginErrorCodes = nil;
@@ -52,8 +52,8 @@ static NSString * const kMKAppVersionPath        = @"/app/v3/app/version";
         _manager.responseSerializer.acceptableContentTypes = [NSSet setWithObjects:@"application/json", @"text/json", @"text/plain", @"text/html", nil];
         _manager.requestSerializer.timeoutInterval = 30.0;
 
-        // 开发期写死 test 域名; 上线接 MKDomainManager 时改这里
-        self.baseURLString = @"https://test-phl-api.fyinformation.cc";
+        // 走 MKAppEnvironment 读 Info.plist 的 MKBaseURL, 每个项目改 Info.plist 即可
+        self.baseURLString = [MKAppEnvironment baseURL];
     }
     return self;
 }
