@@ -19,6 +19,11 @@ target 'PHI372-DC' do
   pod 'IQKeyboardManager', '~> 6.5.19'
   pod 'SDCycleScrollView', '~> 1.82'
 
+  # Push Notifications (Firebase)
+  # GoogleService-Info.plist 测试前丢进 bundle; 缺它代码会优雅跳过 FIRApp 初始化
+  pod 'FirebaseCore'
+  pod 'FirebaseMessaging'
+
   # 业务模块后续按需启用:
   # pod 'Adjust', '~> 5.4.6'
   # pod 'SystemServices'

@@ -40,6 +40,7 @@ typedef NS_ENUM(NSInteger, MKBottomSheetType) {
     MKBottomSheetTypePermissionCamera,              // 3:1577 二次弹窗-相机
     MKBottomSheetTypePermissionLocation,            // 3:1587 二次弹窗-定位
     MKBottomSheetTypePermissionContacts,            // 3:1596 二次弹窗-通讯录
+    MKBottomSheetTypePermissionNotification,        // 二次弹窗-通知(复用返回弹窗样式)
     // 下单流程
     MKBottomSheetTypeDataCapture,                   // opiuJ 数据抓取 (通讯录上传进度)
     MKBottomSheetTypeApplySuccess,                  // Q5IzQ 产品申请-申请成功-老客

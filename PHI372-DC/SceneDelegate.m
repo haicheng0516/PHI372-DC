@@ -8,6 +8,7 @@
 #import "MKLoginManager.h"
 #import "MKSignInViewController.h"
 #import "MKHomeViewController.h"
+#import "MKNotificationPermissionCoordinator.h"
 
 @implementation SceneDelegate
 
@@ -40,7 +41,11 @@
 }
 
 - (void)sceneDidDisconnect:(UIScene *)scene {}
-- (void)sceneDidBecomeActive:(UIScene *)scene {}
+- (void)sceneDidBecomeActive:(UIScene *)scene {
+    // 显式同步通知权限状态: 覆盖用户从设置/推送启动等不依赖通知监听的路径,
+    // 状态从非授权变为授权时补埋 600 + 注册 + 拉 token
+    [[MKNotificationPermissionCoordinator sharedManager] syncPermissionStatusIfNeeded];
+}
 - (void)sceneWillResignActive:(UIScene *)scene {}
 - (void)sceneWillEnterForeground:(UIScene *)scene {}
 - (void)sceneDidEnterBackground:(UIScene *)scene {}

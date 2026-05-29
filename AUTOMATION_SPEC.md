@@ -976,3 +976,58 @@ NSDictionary *body = [[MKEncryptManager sharedManager] generateRequestBody:@{ @"
 2. 填完字段 tap "Save" → log `POST /app/v3/payAccountInfo/save → 200` + HUD "Added successfully" → pop 回列表
 3. 列表上 tap 已有卡的 Submit → 落到 BankCardEdit 页 → log `POST /payAccountInfo/list → 200` + `POST /payAccountInfoItemList → 200` → 表单预填
 4. 改字段 tap "Submit" → log `POST /payAccountInfo/update → 200` → HUD "Updated successfully" → pop
+
+---
+
+## 8. 通知(FCM 推送)功能接入(最终成功流程)
+
+通知 = Firebase Cloud Messaging 推送 + 权限调度。三组件 + 四处接线,逻辑可整套复用到下个项目(只换前缀)。
+
+### 8.1 依赖
+
+```ruby
+# Podfile target 内
+pod 'FirebaseCore'
+pod 'FirebaseMessaging'
+```
+`pod install`(会拉 FirebaseCore/Messaging/Installations 等,12.x)。
+
+### 8.2 三个新建组件(放 `Common/Manager/`)
+
+| 文件 | 职责 |
+|---|---|
+| `${PREFIX}FCMTokenManager` | 拉 FCM token(指数退避 5 次,1/2/4/8/16s)+ 未登录暂存 + 登录态通知补发 + `FIRMessagingDelegate` token 刷新;上报 `POST /app/v3/user/info { googleToken }`(googleToken **不参与签名**,signData 传空) |
+| `${PREFIX}NotificationPermissionCoordinator` | 一天一次(`LastCheckDate` 按日历日);`notDetermined`→系统弹窗;`denied`→自定义二次弹窗(引导去设置);已授权→register+拉token;`syncPermissionStatusIfNeeded` 用 `LastAuthStatus` 追踪状态翻转,非授权→授权补埋 600;授权/拒绝立即写 `LastAuthStatus` 防重复埋点 |
+| `${PREFIX}EventTrackingService` | 埋点 `POST /app/v3/bury/record { eventCode }`(eventCode **参与签名**);600=授权 / 601=拒绝 / 602=推送唤起 |
+
+### 8.3 四处接线
+
+1. **AppDelegate**:`didFinishLaunching` 调 `setupPushNotifications`
+   - `[NSBundle pathForResource:@"GoogleService-Info" ofType:@"plist"]` 存在才 `[FIRApp configure]` + 设 `FIRMessaging.delegate`,**缺 plist 优雅跳过不崩**
+   - `[UNUserNotificationCenter currentNotificationCenter].delegate = self`
+   - `didRegisterForRemoteNotificationsWithDeviceToken` → 设 `FIRMessaging.APNSToken` + `fetchAndReport`
+   - `UNUserNotificationCenterDelegate`:前台 `willPresentNotification` 返回 banner/list/sound;`didReceiveNotificationResponse` 仅 inactive/background 时埋 602
+2. **SceneDelegate**:`sceneDidBecomeActive` → `[coordinator syncPermissionStatusIfNeeded]`
+3. **首页 VC**:`viewWillAppear` 延迟 **2.5s** 调 `tryShowNotificationPermissionIfIdle`,**四闸门**:已登录 / 今日未查 / 无强更或更新或提现弹窗 / 弹窗队列空闲。优先级最低(好评 > 更新 > 提现 > 复借 > 通知)
+4. **二次弹窗**:复用项目封装的返回弹窗(无图标两按钮),新增弹窗枚举 `...PermissionNotification` 走 `buildConfirmWithHintIcon:nil`,`onConfirmTapped`→打开系统设置(`autoDismissOnConfirm` 默认 YES 会自动关)。文案:`We recommend enabling notifications to avoid missing updates about loan approval and successful disbursement!`
+
+### 8.4 Info.plist / 能力
+
+- `Info.plist` 加 `UIBackgroundModes` → `remote-notification`
+- Xcode 开 **Push Notifications** capability(`aps-environment`)——动 entitlements/能力开关,在 Xcode GUI 操作,不手 patch pbxproj
+- `GoogleService-Info.plist` 丢进 `${APP}/` 同步组(自动入 bundle)。**占位 plist 注意**:Firebase 启动会校验 `API_KEY` 必须正好 **39 字符**、`GOOGLE_APP_ID` 格式 `1:数字:ios:hex`,否则 `FirebaseInstallations` 抛异常崩溃 → 占位值也要格式合法
+
+### 8.5 已知陷阱
+
+- **G18**:占位 `GoogleService-Info.plist` 若 `API_KEY` 长度 ≠ 39 → 启动即 `Terminating app 'com.firebase.installations'` 崩溃。占位也必须格式合法
+- **G19**:iOS 26 模拟器 idb HID tap(点/像素坐标均试)够不到 SpringBoard 系统权限弹窗(返回 rc=0 但无效),系统弹窗→`denied` 切换需真机点;首次系统弹窗本身能在模拟器验证(出现即证明接线 + 四闸门通过)
+
+### 8.6 验证步骤
+
+模拟器可验:
+1. 登录后进首页,2.5s 后弹系统通知权限弹窗(`notDetermined`→系统弹窗),log `✅ [Push] FirebaseApp 初始化成功`(占位 plist 在场)
+2. 占位 plist 不崩(API_KEY 39 字符)
+
+真机带真 plist + 开 Push capability 验:
+3. 拒绝→再触发→自定义二次弹窗;授权→log 埋 600 + APNs 注册 + `[FCM]` 拉 token → `POST /app/v3/user/info` 上报 googleToken → 200
+4. 后台推一条 → 前台 banner / 点击进 App 埋 602

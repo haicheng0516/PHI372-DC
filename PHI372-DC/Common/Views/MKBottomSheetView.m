@@ -184,6 +184,11 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
             [self buildPermission:@"mk_sheet_locate"   body:@"We use your location to enhance fraud prevention. Tap Confirm and allow access in Settings."]; break;
         case MKBottomSheetTypePermissionContacts:
             [self buildPermission:@"mk_sheet_contacts" body:@"We need contacts access for emergency contact verification. Tap Confirm and allow access in Settings."]; break;
+        case MKBottomSheetTypePermissionNotification:
+            // 复用返回弹窗样式(无图标两按钮),仅替换文案
+            [self buildConfirmWithHintIcon:nil
+                                       body:@"We recommend enabling notifications to avoid missing updates about loan approval and successful disbursement!"
+                                    confirm:@"Confirm" cancel:@"Cancel"]; break;
 
         case MKBottomSheetTypeDataCapture:
             [self buildDataCapture]; break;
