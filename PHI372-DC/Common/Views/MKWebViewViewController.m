@@ -1,6 +1,5 @@
 //
 //  MKWebViewViewController.m
-//  PHI372-DC
 //
 
 #import "MKWebViewViewController.h"

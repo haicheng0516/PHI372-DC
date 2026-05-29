@@ -1,6 +1,5 @@
 //
 //  MKPhoneValidator.m
-//  PHI372-DC
 //
 
 #import "MKPhoneValidator.h"

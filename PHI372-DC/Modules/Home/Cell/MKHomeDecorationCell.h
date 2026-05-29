@@ -1,6 +1,5 @@
 //
 //  MKHomeDecorationCell.h
-//  PHI372-DC
 //
 //  首页装饰图 Cell — 用于 BeforeKYC 中部插画 (mk_home_partners 等).
 //

@@ -1,6 +1,5 @@
 //
 //  MKToastView.m
-//  PHI372-DC
 //
 
 #import "MKToastView.h"

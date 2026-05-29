@@ -1,5 +1,5 @@
 //  MKProfileViewController.m
-//  PHI372-DC — Figma 3:338 个人中心
+//  Figma 3:338 个人中心
 //  布局精确还原 Figma 3:338 (375×812):
 //    顶部绿色 BG     0,0,375,222    fill #385330  圆角 0 0 14 14
 //      + 钱币插画图 (image fill, scaleMode=FILL)

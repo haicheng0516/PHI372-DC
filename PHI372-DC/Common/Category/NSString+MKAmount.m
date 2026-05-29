@@ -1,5 +1,4 @@
 //  NSString+MKAmount.m
-//  PHI372-DC
 
 #import "NSString+MKAmount.h"
 

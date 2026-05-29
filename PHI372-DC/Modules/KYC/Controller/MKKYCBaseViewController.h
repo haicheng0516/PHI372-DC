@@ -1,6 +1,5 @@
 //
 //  MKKYCBaseViewController.h
-//  PHI372-DC
 //
 //  KYC 流程基类
 //  封装: NavBar(深绿) + 顶部进度条 + UITableView + 底部固定 Continue 按钮.

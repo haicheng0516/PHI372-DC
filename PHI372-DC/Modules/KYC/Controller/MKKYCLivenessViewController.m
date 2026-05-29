@@ -1,6 +1,6 @@
 //
 //  MKKYCLivenessViewController.m
-//  PHI372-DC — Figma 3:1155/3:1171 KYC-活体认证 (前置相机 + Ready/Captured 状态机)
+//  Figma 3:1155/3:1171 KYC-活体认证 (前置相机 + Ready/Captured 状态机)
 //
 //  布局: 品牌绿 nav "ID Information"
 //        Hint card (18,110) 339×42

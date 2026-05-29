@@ -1,6 +1,6 @@
 //
 //  MKDialogGalleryViewController.h
-//  PHI372-DC — 调试: 21 种 Dialog 类型列表, 点击 row 弹对应 dialog
+//  调试: 21 种 Dialog 类型列表, 点击 row 弹对应 dialog
 //
 
 // 仅 DEBUG 构建可用: 整模块在 Release(App Store)构建中被编译排除。

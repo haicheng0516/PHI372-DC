@@ -1,6 +1,5 @@
 //
 //  MKRatingPromptManager.h
-//  PHI372-DC
 //
 //  好评引导触发协调器(跨模块,走 NSUserDefaults 持久标志)。
 //  下单成功页(Order/Product/Home)只调 noteOrderCompleted 打标志;

@@ -1,6 +1,5 @@
 //
 //  MKActionButton.m
-//  PHI372-DC
 //
 
 #import "MKActionButton.h"

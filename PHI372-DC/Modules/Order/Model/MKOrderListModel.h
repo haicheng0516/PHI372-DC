@@ -1,5 +1,5 @@
 //  MKOrderListModel.h
-//  PHI372-DC — /app/v3/order/list 单条订单
+//  /app/v3/order/list 单条订单
 
 #import <Foundation/Foundation.h>
 

@@ -1,6 +1,5 @@
 //
 //  MKGradientButton.m
-//  PHI372-DC
 //
 
 #import "MKGradientButton.h"

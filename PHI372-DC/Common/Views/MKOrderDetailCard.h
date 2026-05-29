@@ -1,6 +1,6 @@
 //
 //  MKOrderDetailCard.h
-//  PHI372-DC — Figma 3:719 / 3:761 / 3:814 明细卡 (灰底 + N 行 label/value + 可选卡号 + 可选分组分割线 + 可选 hint)
+//  Figma 3:719 / 3:761 / 3:814 明细卡 (灰底 + N 行 label/value + 可选卡号 + 可选分组分割线 + 可选 hint)
 //
 //  尺寸: 339×N (高度由行数决定) r=14 #E9E9E4
 //  内部布局:

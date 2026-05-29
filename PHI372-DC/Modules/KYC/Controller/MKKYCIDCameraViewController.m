@@ -1,5 +1,5 @@
 //  MKKYCIDCameraViewController.m
-//  PHI372-DC — Figma 3:1126/1140 KYC-身份证拍照 (AVFoundation 相机预览 + 取景框 + 双态)
+//  Figma 3:1126/1140 KYC-身份证拍照 (AVFoundation 相机预览 + 取景框 + 双态)
 //  布局:
 //    AVCaptureVideoPreviewLayer 全屏 (后置相机)
 //    黑遮罩 0.85 (覆盖在 preview 上, 取景区域抠掉)

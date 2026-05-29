@@ -1,6 +1,5 @@
 //
 //  MKHomeResponse.h
-//  PHI372-DC
 //
 //  suphome 接口响应 + 产品列表响应 + KYC状态响应
 //

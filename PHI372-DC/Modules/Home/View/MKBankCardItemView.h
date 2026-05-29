@@ -1,6 +1,6 @@
 //
 //  MKBankCardItemView.h
-//  PHI372-DC — Figma 3:1188 银行卡 cell (339×171)
+//  Figma 3:1188 银行卡 cell (339×171)
 //
 
 #import <UIKit/UIKit.h>

@@ -1,6 +1,5 @@
 //
 //  MKRepaymentPlanButton.m
-//  PHI372-DC
 //
 
 #import "MKRepaymentPlanButton.h"

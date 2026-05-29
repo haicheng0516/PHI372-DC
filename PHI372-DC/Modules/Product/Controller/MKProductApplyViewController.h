@@ -1,5 +1,4 @@
 //  MKProductApplyViewController.h
-//  PHI372-DC
 //  UI 走 Pencil 372:
 //    - 多金额: Hero amount chevron + picker (Pencil b4hMw0)
 //    - 单金额: Hero amount 静态文本, 无 chevron     (Pencil LbSVz)

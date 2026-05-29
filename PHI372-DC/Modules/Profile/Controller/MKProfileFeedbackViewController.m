@@ -1,6 +1,6 @@
 //
 //  MKProfileFeedbackViewController.m
-//  PHI372-DC — Figma 3:1220 个人中心-问题反馈
+//  Figma 3:1220 个人中心-问题反馈
 //
 //  布局精确还原 (375×812):
 //    顶部品牌绿 nav (#385330 r=0,0,14,14) 标题 "Feedback"

@@ -1,6 +1,5 @@
 //
 //  MKRatingPromptManager.m
-//  PHI372-DC
 //
 
 #import "MKRatingPromptManager.h"

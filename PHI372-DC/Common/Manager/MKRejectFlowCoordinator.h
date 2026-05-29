@@ -1,6 +1,5 @@
 //
 //  MKRejectFlowCoordinator.h
-//  PHI372-DC
 //
 //  拒量输出调度器。判定 + 跳转一体, 调用方只关心"接管了吗"。
 //

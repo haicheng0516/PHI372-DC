@@ -1,6 +1,5 @@
 //
 //  MKDetailRowsView.m
-//  PHI372-DC
 //
 
 #import "MKDetailRowsView.h"

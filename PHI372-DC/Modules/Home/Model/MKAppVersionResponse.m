@@ -1,6 +1,5 @@
 //
 //  MKAppVersionResponse.m
-//  PHI372-DC
 //
 
 #import "MKAppVersionResponse.h"

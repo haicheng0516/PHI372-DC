@@ -1,5 +1,4 @@
 //  MKLoanProductModel.h
-//  PHI372-DC
 //  Loan details 页展示层 Model. 由后端 termV3 response 通过工厂方法生成.
 
 #import <Foundation/Foundation.h>

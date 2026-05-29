@@ -1,6 +1,5 @@
 //
 //  MKRejectFlowCoordinator.m
-//  PHI372-DC
 //
 
 #import "MKRejectFlowCoordinator.h"

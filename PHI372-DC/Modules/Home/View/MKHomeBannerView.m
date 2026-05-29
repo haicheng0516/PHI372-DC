@@ -1,6 +1,5 @@
 //
 //  MKHomeBannerView.m
-//  PHI372-DC
 //
 //  Figma 26:4355 Se_banner — 直接用 PNG 包含全部内容(标题/胶囊/箭头/插画/副标题)
 //

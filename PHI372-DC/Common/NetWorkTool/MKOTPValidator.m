@@ -1,6 +1,5 @@
 //
 //  MKOTPValidator.m
-//  PHI372-DC
 //
 
 #import "MKOTPValidator.h"

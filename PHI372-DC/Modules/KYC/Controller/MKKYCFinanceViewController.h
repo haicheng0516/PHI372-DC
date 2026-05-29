@@ -1,6 +1,5 @@
 //
 //  MKKYCFinanceViewController.h
-//  PHI372-DC
 //
 //  KYC-财务状况 — Figma 3:936
 //

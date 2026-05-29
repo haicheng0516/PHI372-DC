@@ -1,6 +1,5 @@
 //
 //  MKFormField.h
-//  PHI372-DC
 //  通用表单输入组件 - 支持 input 和 picker 两种模式
 //
 

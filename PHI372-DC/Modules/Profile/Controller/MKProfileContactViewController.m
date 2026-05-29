@@ -1,6 +1,6 @@
 //
 //  MKProfileContactViewController.m
-//  PHI372-DC — Figma 3:1281 联系我们
+//  Figma 3:1281 联系我们
 //
 //  hint banner + website row + email row(网址/邮箱来自 app/config)
 //

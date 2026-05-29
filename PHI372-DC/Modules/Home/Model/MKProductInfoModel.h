@@ -1,6 +1,5 @@
 //
 //  MKProductInfoModel.h
-//  PHI372-DC
 //
 
 #import <Foundation/Foundation.h>

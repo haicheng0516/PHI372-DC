@@ -1,6 +1,5 @@
 //
 //  MKKYCProgressBarView.m
-//  PHI372-DC
 //
 
 #import "MKKYCProgressBarView.h"

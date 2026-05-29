@@ -1,6 +1,5 @@
 //
 //  MKHomeIconGridView.h
-//  PHI372-DC
 //
 //  首页 4 个圆形 icon 阵列(Contact / Bank / Order / Me)
 //

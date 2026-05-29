@@ -1,5 +1,5 @@
 //  MKProductStateResponse.h
-//  PHI372-DC — /app/v3/product/state 响应包装
+//  /app/v3/product/state 响应包装
 
 #import <Foundation/Foundation.h>
 #import "MKProductStateDetailModel.h"

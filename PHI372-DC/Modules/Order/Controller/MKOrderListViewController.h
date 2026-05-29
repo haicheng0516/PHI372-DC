@@ -1,6 +1,6 @@
 //
 //  MKOrderListViewController.h
-//  PHI372-DC — Figma 3:599 / 3:636 / 3:661 / 3:686 历史订单 (accordion)
+//  Figma 3:599 / 3:636 / 3:661 / 3:686 历史订单 (accordion)
 //
 
 #import "MKBaseViewController.h"

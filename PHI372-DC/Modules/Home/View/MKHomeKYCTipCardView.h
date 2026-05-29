@@ -1,6 +1,5 @@
 //
 //  MKHomeKYCTipCardView.h
-//  PHI372-DC
 //
 //  首页 KYC 前提示卡片 — 米色卡片 + 黄色 hint icon + 提示文本
 //

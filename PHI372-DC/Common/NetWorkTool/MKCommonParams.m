@@ -1,6 +1,5 @@
 //
 //  MKCommonParams.m
-//  PHI372-DC
 //
 
 #import "MKCommonParams.h"

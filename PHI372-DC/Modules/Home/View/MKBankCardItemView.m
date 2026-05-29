@@ -1,6 +1,6 @@
 //
 //  MKBankCardItemView.m
-//  PHI372-DC — Figma 3:1188 银行卡 cell
+//  Figma 3:1188 银行卡 cell
 //
 //  布局 (339×171 r=20):
 //    背景: 深绿底 + 渐变高光 (#002903 → #11722E)

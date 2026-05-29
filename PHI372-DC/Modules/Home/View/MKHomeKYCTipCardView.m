@@ -1,6 +1,5 @@
 //
 //  MKHomeKYCTipCardView.m
-//  PHI372-DC
 //
 //  Figma KYC 提示卡 — 灰底圆角 + 左上橙色 ! icon + 右侧多行文字
 //

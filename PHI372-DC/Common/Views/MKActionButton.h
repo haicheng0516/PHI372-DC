@@ -1,6 +1,5 @@
 //
 //  MKActionButton.h
-//  PHI372-DC
 //  主操作按钮 - 纯色 #5B662D, 高64, 圆角20
 //
 

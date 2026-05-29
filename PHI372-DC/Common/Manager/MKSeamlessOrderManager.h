@@ -1,5 +1,4 @@
 //  MKSeamlessOrderManager.h
-//  PHI372-DC
 //  流程: 加载配置 → 定位权限 → 提交订单 → 设备上传 → 通讯录上传 → ready
 
 #import <Foundation/Foundation.h>

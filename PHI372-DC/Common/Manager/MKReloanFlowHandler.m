@@ -1,6 +1,5 @@
 //
 //  MKReloanFlowHandler.m
-//  PHI372-DC
 //
 
 #import "MKReloanFlowHandler.h"
@@ -105,7 +104,7 @@
     sheet.onConfirmTapped = ^{
         __strong typeof(weakSelf) strongSelf = weakSelf;
         if (!strongSelf) return;
-        // 复借弹窗保持在界面上, 等系统定位权限弹窗出现时再 dismiss (与 259 一致)
+        // 复借弹窗保持在界面上, 等系统定位权限弹窗出现时再 dismiss
         [strongSelf startSeamlessOrderWithProductId:productId selectedAmount:loanAmount];
     };
     sheet.onCancelTapped = ^{

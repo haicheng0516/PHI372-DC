@@ -1,6 +1,5 @@
 //
 //  MKKYCCommitResponse.h
-//  PHI372-DC
 //
 //  KYC 各步提交接口的通用响应 (/personal /work /contact /liveness).
 //

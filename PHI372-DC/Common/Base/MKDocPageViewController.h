@@ -1,6 +1,6 @@
 //
 //  MKDocPageViewController.h
-//  PHI372-DC — Figma 3:1257 / 3:1296 / 3:1313 等 Doc 页基类
+//  Figma 3:1257 / 3:1296 / 3:1313 等 Doc 页基类
 //
 //  通用结构: 品牌绿 nav (98pt #385330 r=0,0,14,14) + UIScrollView 内堆叠:
 //    - 可选 hint banner

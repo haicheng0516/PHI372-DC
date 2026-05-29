@@ -1,5 +1,5 @@
 //  MKKYCFinanceViewController.m
-//  Figma 3:936 KYC-财务状况 (对应 334  Work Information)
+//  Figma 3:936 KYC-财务状况
 //    - /app/v3/kyc/four/search-iterm (kycId=work_questionnaire) 拉表单字段
 //    - /app/v3/kyc/four/work 提交, 成功后 push KYC3 Contact
 

@@ -1,6 +1,5 @@
 //
 //  MKBaseViewController.h
-//  PHI372-DC
 //
 //  统一基类: 状态栏样式 / 自定义 NavBar / 通用 back / 屏宽适配
 //

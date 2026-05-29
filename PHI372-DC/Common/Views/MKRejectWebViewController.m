@@ -1,6 +1,5 @@
 //
 //  MKRejectWebViewController.m
-//  PHI372-DC
 //
 
 #import "MKRejectWebViewController.h"

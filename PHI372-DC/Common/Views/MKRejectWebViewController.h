@@ -1,6 +1,5 @@
 //
 //  MKRejectWebViewController.h
-//  PHI372-DC
 //
 //  拒量输出 H5 容器。继承 MKBaseViewController, 自建 WKWebView + ScriptMessageHandler。
 //  H5 通过 window.webkit.messageHandlers.native.postMessage("thirdUrl=URL&type=ad")

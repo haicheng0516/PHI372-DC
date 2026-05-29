@@ -1,6 +1,5 @@
 //
 //  MKSignInCardView.h
-//  PHI372-DC
 //
 //  Sign in 页核心卡片 — 包含胶囊标题/欢迎语/手机号/OTP/协议/Sign in 按钮
 //  对应 Figma 3:1743 中 card 节点(18,103, 339x512)

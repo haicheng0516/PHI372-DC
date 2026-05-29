@@ -1,5 +1,4 @@
 //  MKHomeViewController.m
-//  PHI372-DC
 //   - viewWillAppear 触发 5 个 API: version + config + suphome + product/list + user/info
 //   - userStatus==10 → 显示装饰图 + sticky Apply Now; 否则显示产品列表
 //   - 弹窗优先级队列: ForceUpdate > WithdrawPending > ReloanTip
@@ -92,7 +91,6 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
     [self setupTableView];
     [self refreshBottomBarVisibility];
 
-    // 对齐 259 MainHomeViewController L124: 监听复借/数据采集结束 → 刷新首页
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(onSeamlessOrderDataCaptureCompleted:)
                                                  name:MKSeamlessOrderDataCaptureCompletedNotification
@@ -501,7 +499,6 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
     MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypeExistingOrder config:nil];
     __weak typeof(self) wself = self;
     sheet.onConfirmTapped = ^{
-        // 对齐 259: Know More 直跳产品对应的订单详情(orderId=@"1" 让后端按 productId 查最新订单)
         MKOrderDetailViewController *vc = [[MKOrderDetailViewController alloc] initWithOrderId:@"1"];
         vc.productId = safeProductId;
         [wself.navigationController pushViewController:vc animated:YES];
@@ -717,7 +714,6 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
     });
 }
 
-// 对齐 259 MainHomeViewController L1917-1938
 - (void)seamlessOrderManagerDidCancel:(id)manager {
     [SVProgressHUD dismiss];
     [self dismissDataCaptureSheet];
@@ -725,7 +721,6 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
     [[NSNotificationCenter defaultCenter] postNotificationName:MKSeamlessOrderDataCaptureCompletedNotification object:nil];
 }
 
-// 对齐 259 MainHomeViewController L1908 — 系统定位权限弹窗即将弹出:
 // 收掉 loading 让用户能操作系统弹窗, **保留复借弹窗**(系统拒后可重试)
 - (void)seamlessOrderManagerWillShowSystemLocationPermissionAlert:(id)manager {
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -733,7 +728,6 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
     });
 }
 
-// 对齐 259 L1942 — 定位二弹 Cancel: 不 hide 复借弹窗(留给用户重试), 只收 HUD + mask
 - (void)seamlessOrderManagerDidCancelLocationPermission:(id)manager {
     dispatch_async(dispatch_get_main_queue(), ^{
         [SVProgressHUD dismiss];
@@ -741,7 +735,6 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
     });
 }
 
-// 对齐 259 MainHomeViewController L1960-1982 — 通讯录二弹 Cancel:
 // 订单已下完, 复借弹窗再点会撞 pending order → 隐藏复借弹窗 + 数据抓取 mask + HUD + 刷新首页
 - (void)seamlessOrderManagerDidCancelContactsPermission:(id)manager {
     dispatch_async(dispatch_get_main_queue(), ^{

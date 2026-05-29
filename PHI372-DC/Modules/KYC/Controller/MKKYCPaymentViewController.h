@@ -1,6 +1,5 @@
 //
 //  MKKYCPaymentViewController.h
-//  PHI372-DC
 //
 //  KYC-支付认证 — Figma 3:983
 //

@@ -1,5 +1,4 @@
 //  MKConstants.h
-//  PHI372-DC
 //  所有颜色值严格来自Figma设计稿JSON
 
 #ifndef MKConstants_h
@@ -135,7 +134,7 @@ static inline UIWindow * _Nullable mk_keyWindow(void) {
 #define kStrongSelf __strong typeof(weakSelf) strongSelf = weakSelf;
 
 // App 显示名: 全部走 Info.plist (CFBundleDisplayName → CFBundleName → CFBundleExecutable)
-// 用户可见的 Profile/About/网络 appName 字段都走这个,避免工程名 (PHI372-DC) 泄露
+// 用户可见的 Profile/About/网络 appName 字段都走这个,避免工程名 泄露
 // 本工程只需改 Info.plist 一处
 static inline NSString *MKAppDisplayName(void) {
     NSDictionary *info = [[NSBundle mainBundle] infoDictionary];

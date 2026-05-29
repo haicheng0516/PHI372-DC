@@ -1,6 +1,6 @@
 //
 //  MKOrderDetailBottomBar.h
-//  PHI372-DC — 订单详情底部按钮区
+//  订单详情底部按钮区
 //
 //  按 orderStatus 动态显示 4 种形态:
 //    None              — 审核中(30) 等无操作状态; bar 不显示

@@ -1,6 +1,5 @@
 //
 //  MKDetailRowsView.h
-//  PHI372-DC
 //
 //  Loan 详情多行容器, 装多个 MKDetailRow
 //

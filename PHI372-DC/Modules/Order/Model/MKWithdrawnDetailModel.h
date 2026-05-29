@@ -1,5 +1,5 @@
 //  MKWithdrawnDetailModel.h
-//  PHI372-DC — /app/v3/order/withdrawn/detail 响应 data
+//  /app/v3/order/withdrawn/detail 响应 data
 //  data 含 amountDetailList[], 每项含 termDetailList[]; 用户可在详情页重选金额/期限
 
 #import <Foundation/Foundation.h>

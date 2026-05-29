@@ -1,6 +1,5 @@
 //
 //  MKKYCBankCardEditViewController.h
-//  PHI372-DC
 //
 //  KYC-修改银行卡 — Figma 3:1012
 //

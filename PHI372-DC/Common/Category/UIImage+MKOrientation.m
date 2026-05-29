@@ -1,6 +1,5 @@
 //
 //  UIImage+MKOrientation.m
-//  PHI372-DC
 //
 
 #import "UIImage+MKOrientation.h"

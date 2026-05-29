@@ -1,5 +1,4 @@
 //  MKProductApplyViewController.m
-//  PHI372-DC
 //    - selectionMode 由 home 路由时按 amountDetailList.count == 1 决定
 //    - 多金额: amount chevron + picker, 切换重置 selectedTermDetail = newAmount.termList[0]
 //    - 单金额: amount 静态展示, 不响应点击
@@ -378,7 +377,7 @@
     [self dismissDataCaptureSheet];
 
     // 通讯录权限失败(系统弹 Don't Allow / iOS18 Limited / 未知状态) — 订单已下, 回上层页
-    // 其他失败(定位/订单接口/网络) — 留在当前页, 与 259 ProductApplication L1679-1694 一致
+    // 其他失败(定位/订单接口/网络) — 留在当前页
     NSString *desc = error.localizedDescription ?: @"";
     if ([desc hasPrefix:@"Contacts"]) {
         [[NSNotificationCenter defaultCenter] postNotificationName:MKSeamlessOrderDataCaptureCompletedNotification object:nil];
@@ -392,7 +391,6 @@
         if (message.length > 0) [SVProgressHUD showInfoWithStatus:message];
     });
 }
-// 对齐 259 ProductApplicationController L1727-1751
 - (void)seamlessOrderManagerDidCancel:(id)manager {
     [SVProgressHUD dismiss];
     [self.reloanHandler hideReloanTipAlert];
@@ -411,7 +409,6 @@
         [self dismissDataCaptureSheet];
     });
 }
-// 对齐 259 ProductApplicationController L1767-1791
 - (void)seamlessOrderManagerDidCancelContactsPermission:(id)manager {
     dispatch_async(dispatch_get_main_queue(), ^{
         [SVProgressHUD dismiss];

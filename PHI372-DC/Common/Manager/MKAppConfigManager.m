@@ -1,6 +1,5 @@
 //
 //  MKAppConfigManager.m
-//  PHI372-DC
 //
 
 #import "MKAppConfigManager.h"

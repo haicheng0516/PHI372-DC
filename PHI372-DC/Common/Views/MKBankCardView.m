@@ -1,6 +1,5 @@
 //
 //  MKBankCardView.m
-//  PHI372-DC
 //  设计图 okZYR:
 //  默认卡: 背景图jtln_bank_bg + 白色文字
 //  非默认卡: 无背景 + 灰色(#6E766B)文字

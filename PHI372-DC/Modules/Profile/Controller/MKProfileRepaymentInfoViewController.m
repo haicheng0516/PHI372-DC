@@ -1,6 +1,6 @@
 //
 //  MKProfileRepaymentInfoViewController.m
-//  PHI372-DC — Figma 3:1296 还款须知
+//  Figma 3:1296 还款须知
 //
 //  hint banner + 2 contact rows + 一个大文档卡 (3 段落)。网址/邮箱来自 app/config
 //

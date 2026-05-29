@@ -1,6 +1,5 @@
 //
 //  MKPayAccountModel.h
-//  PHI372-DC
 //
 //  /app/v3/payAccountInfo/list 响应中的单条银行卡记录.
 //  跨页面复用:

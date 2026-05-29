@@ -1,6 +1,5 @@
 //
 //  MKLoginManager.h
-//  PHI372-DC
 //
 //  极简登录态管理: 用 NSUserDefaults 记 isLoggedIn / mobile / token,
 //  Phase 9 接入接口时替换为 [_DEFERRED/NetWorkTool/MKLoginManager.m] 那一版.

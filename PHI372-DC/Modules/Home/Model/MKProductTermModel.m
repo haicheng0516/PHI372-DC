@@ -1,5 +1,4 @@
 //  MKProductTermModel.m
-//  PHI372-DC
 
 #import "MKProductTermModel.h"
 

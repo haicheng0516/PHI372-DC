@@ -1,6 +1,5 @@
 //
 //  MKHomeBannerView.h
-//  PHI372-DC
 //
 //  首页 banner — 黑底深色卡片, "Swift and reliable financial support" + Apply Now CTA
 //

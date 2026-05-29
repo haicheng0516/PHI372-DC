@@ -1,6 +1,6 @@
 //
 //  MKProfileAboutViewController.m
-//  PHI372-DC — 个人中心-关于我们
+//  个人中心-关于我们
 //
 //  设计稿 (375×812):
 //    顶部绿色 nav bg (#385330 h=98 r=0,0,14,14) 标题 "About" PingFang SC 20pt white 居中

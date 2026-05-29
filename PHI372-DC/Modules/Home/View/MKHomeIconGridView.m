@@ -1,6 +1,5 @@
 //
 //  MKHomeIconGridView.m
-//  PHI372-DC
 //
 //  Figma 4 圆形 icon: Contact(38) Bank(120) Order(202) Me(284), 每个 53x53 圆,
 //  内部图标 41x41(深色背景上).

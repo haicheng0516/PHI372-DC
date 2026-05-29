@@ -1,6 +1,5 @@
 //
 //  MKBaseTableViewCell.m
-//  PHI372-DC
 //
 
 #import "MKBaseTableViewCell.h"

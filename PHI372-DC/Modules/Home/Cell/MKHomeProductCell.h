@@ -1,6 +1,5 @@
 //
 //  MKHomeProductCell.h
-//  PHI372-DC
 //
 //  首页产品 Cell — 包 MKHomeProductCardView (Figma 339×126 + 间距 12pt).
 //

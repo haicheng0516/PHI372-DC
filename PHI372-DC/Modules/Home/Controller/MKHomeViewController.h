@@ -1,6 +1,5 @@
 //
 //  MKHomeViewController.h
-//  PHI372-DC
 //
 //  统一首页 - 替代 MKHomeBeforeKYC + MKHomeAfterKYC
 //  按 /user/suphome 返回的 userStatus 切 cell:

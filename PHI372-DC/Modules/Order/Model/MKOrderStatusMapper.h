@@ -1,6 +1,6 @@
 //
 //  MKOrderStatusMapper.h
-//  PHI372-DC — orderStatus → (accordion 桶 / chip 文案 / chip 色)
+//  orderStatus → (accordion 桶 / chip 文案 / chip 色)
 //
 //  桶/chip 映射来自 Pencil 历史订单页面 ccSDx / I504rv / RMW3l / e9Pr2
 //

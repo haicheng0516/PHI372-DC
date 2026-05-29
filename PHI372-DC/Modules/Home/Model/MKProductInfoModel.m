@@ -1,6 +1,5 @@
 //
 //  MKProductInfoModel.m
-//  PHI372-DC
 //
 
 #import "MKProductInfoModel.h"

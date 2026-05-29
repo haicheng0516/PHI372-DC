@@ -1,5 +1,4 @@
 //  MKKYCIDCameraViewController.h
-//  PHI372-DC
 //  KYC-身份证认-拍照 — Figma 3:1126
 
 #import <UIKit/UIKit.h>

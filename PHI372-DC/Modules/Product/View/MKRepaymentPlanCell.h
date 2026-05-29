@@ -1,6 +1,6 @@
 //
 //  MKRepaymentPlanCell.h
-//  PHI372-DC — Pencil b4hMw0: Repayment plan 按钮 (y=515) 303×56
+//  Pencil b4hMw0: Repayment plan 按钮 (y=515) 303×56
 //
 
 #import <UIKit/UIKit.h>

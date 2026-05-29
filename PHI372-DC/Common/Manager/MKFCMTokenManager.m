@@ -1,6 +1,5 @@
 //
 //  MKFCMTokenManager.m
-//  PHI372-DC
 //
 
 #import "MKFCMTokenManager.h"

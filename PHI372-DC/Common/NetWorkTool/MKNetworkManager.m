@@ -144,7 +144,7 @@ static NSString * const kMKAppVersionPath        = @"/app/v3/app/version";
         urlString = [NSString stringWithFormat:@"%@%@", self.baseURLString, path];
     }
 
-    // UA 每次请求都设 (334 关键差异点)
+    // UA 每次请求都设
     NSString *ua = [self buildUserAgent];
     [_manager.requestSerializer setValue:ua forHTTPHeaderField:@"User-Agent"];
 

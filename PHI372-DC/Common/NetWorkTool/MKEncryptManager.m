@@ -1,6 +1,5 @@
 //
 //  MKEncryptManager.m
-//  PHI372-DC
 //
 
 #import "MKEncryptManager.h"

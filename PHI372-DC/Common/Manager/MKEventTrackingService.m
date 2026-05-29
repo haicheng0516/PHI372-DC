@@ -1,6 +1,5 @@
 //
 //  MKEventTrackingService.m
-//  PHI372-DC
 //
 
 #import "MKEventTrackingService.h"

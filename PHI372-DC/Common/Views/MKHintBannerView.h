@@ -1,6 +1,6 @@
 //
 //  MKHintBannerView.h
-//  PHI372-DC — Figma 通用 Hint 卡 (Bank list / Feedback / Contact / KYC 上传 / Repayment Instructions 等)
+//  Figma 通用 Hint 卡 (Bank list / Feedback / Contact / KYC 上传 / Repayment Instructions 等)
 //
 //  尺寸: 339×N (height 自适应), x=18 居中
 //  背景 #E9E9E4, 圆角 14

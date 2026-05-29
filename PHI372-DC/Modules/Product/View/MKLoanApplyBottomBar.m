@@ -1,6 +1,5 @@
 //
 //  MKLoanApplyBottomBar.m
-//  PHI372-DC
 //
 
 #import "MKLoanApplyBottomBar.h"

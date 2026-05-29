@@ -1,5 +1,4 @@
 //  MKLoanInfoCell.m
-//  PHI372-DC
 //  容器 cell, 组装 3 个可复用子组件 + 本页特有 UI (银行卡子卡 / Disclaimer / Radio+Terms / Apply Now).
 
 #import "MKLoanInfoCell.h"

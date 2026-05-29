@@ -1,6 +1,5 @@
 //  MKSignInViewController.m
-//  PHI372-DC
-//  接入 334 业务流: /sms/sendVerifySms + /auth/registerOrLogin
+//  接入业务流: /sms/sendVerifySms + /auth/registerOrLogin
 
 #import "MKSignInViewController.h"
 #import "MKSignInCardView.h"

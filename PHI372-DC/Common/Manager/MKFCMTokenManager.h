@@ -1,6 +1,5 @@
 //
 //  MKFCMTokenManager.h
-//  PHI372-DC
 //
 //  负责拉取 Firebase FCM token(带重试),并通过 /app/v3/user/info 上报给后端。
 //  未登录时先暂存,登录后由 MKLoginStateDidChangeNotification 触发补发。

@@ -1,6 +1,5 @@
 //
 //  NSString+MKEncrypt.m
-//  PHI372-DC
 //
 
 #import "NSString+MKEncrypt.h"

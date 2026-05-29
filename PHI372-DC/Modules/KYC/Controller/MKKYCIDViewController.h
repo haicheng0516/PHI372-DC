@@ -1,6 +1,5 @@
 //
 //  MKKYCIDViewController.h
-//  PHI372-DC
 //
 //  KYC-身份证认证 — Figma 3:1099
 //

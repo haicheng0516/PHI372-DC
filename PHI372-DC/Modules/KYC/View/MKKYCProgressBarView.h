@@ -1,6 +1,5 @@
 //
 //  MKKYCProgressBarView.h
-//  PHI372-DC
 //
 //  KYC 顶部进度条 — Figma 设计是带斜条纹的胶囊形, 含浅底 + 深色填充段.
 //  本占位实现: 浅绿底胶囊 + 深绿填充 (UIImageView placeholder).

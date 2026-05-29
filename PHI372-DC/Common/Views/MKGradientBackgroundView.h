@@ -1,6 +1,5 @@
 //
 //  MKGradientBackgroundView.h
-//  PHI372-DC
 //
 //  通用顶部渐变背景 — Login / Home / 订单详情 等多页面共用
 //  Figma 默认: #385330 (27%) → #F8F8F7 (53%), 0→484pt

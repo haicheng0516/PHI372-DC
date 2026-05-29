@@ -1,5 +1,4 @@
 //  MKHomeProductCardView.m
-//  PHI372-DC
 
 #import "MKHomeProductCardView.h"
 #import "MKConstants.h"

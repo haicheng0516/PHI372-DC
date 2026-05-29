@@ -1,5 +1,4 @@
 //  MKBottomSheetView.m
-//  PHI372-DC
 //  中央弹窗：内容驱动高度（按实际正文行数自适应）, 容器在屏幕几何中心
 
 #import "MKBottomSheetView.h"
@@ -412,7 +411,7 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
     [self.containerView.layer insertSublayer:gradient atIndex:0];
 
     // config 支持: productName / productAmount / productLogoURL
-    // 二次格式化兜底 (259 SCTipsAlertView 同款): caller 即便给了 "50000" 也能渲染成 "₱ 50,000"
+    // 二次格式化兜底: caller 即便给了 "50000" 也能渲染成 "₱ 50,000"
     NSString *amountText = @"₱ 50,000";
     if ([self.config[@"productAmount"] isKindOfClass:[NSString class]]) {
         NSString *raw = self.config[@"productAmount"];
@@ -732,7 +731,7 @@ typedef NS_ENUM(NSInteger, MKSheetCancelFillStyle) {
     }
     y += S(32) + S(12);
 
-    // 第二行: 全宽大图 259x195 ← green ✓ "Clear and unobstructed" (Pencil: Wn9sx x=120,y=321)
+    // 第二行: 全宽大图 259×195 ← green ✓ "Clear and unobstructed" (Pencil: Wn9sx x=120,y=321)
     UIView *img3 = [[UIView alloc] initWithFrame:CGRectMake(S(20), y, W - S(40), S(195))];
     img3.backgroundColor = MKHexColor(0xE9E9E4);
     img3.layer.cornerRadius = S(14);

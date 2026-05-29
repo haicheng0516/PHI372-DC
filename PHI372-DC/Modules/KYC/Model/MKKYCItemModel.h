@@ -1,6 +1,5 @@
 //
 //  MKKYCItemModel.h
-//  PHI372-DC
 //
 //  KYC 表单字段模型. 主链路 (Personal/Finance/ID/Payment/BankCardEdit) 用 -initWithDictionary: 解析
 //  search-iterm / payAccountItemList 返回; Contact 用工厂方法构造固定结构再补 relation buttonList.

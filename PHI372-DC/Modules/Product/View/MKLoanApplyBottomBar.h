@@ -1,6 +1,6 @@
 //
 //  MKLoanApplyBottomBar.h
-//  PHI372-DC — Pencil b4hMw0: 底部 fixed 区
+//  Pencil b4hMw0: 底部 fixed 区
 //
 //  布局 (Pencil 坐标):
 //    Radio (36, 662) 16×16

@@ -1,6 +1,5 @@
 //
 //  MKGradientBackgroundView.m
-//  PHI372-DC
 //
 
 #import "MKGradientBackgroundView.h"

@@ -1,6 +1,5 @@
 //
 //  MKHomeResponse.m
-//  PHI372-DC
 //
 
 #import "MKHomeResponse.h"

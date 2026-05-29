@@ -1,6 +1,5 @@
 //
 //  MKNotificationPermissionCoordinator.h
-//  PHI372-DC
 //
 //  通知权限请求调度(对齐已上线 SeacityDC318 / IN464-DC):
 //  - 一天检查一次(按日历日,凌晨 0 点重置)

@@ -1,5 +1,4 @@
 //  MKLoanProductHeroView.m
-//  PHI372-DC
 //  Pencil 坐标 (375 frame, hero 起 y=106). Hero 内 local y = pencil_y - 106.
 
 #import "MKLoanProductHeroView.h"

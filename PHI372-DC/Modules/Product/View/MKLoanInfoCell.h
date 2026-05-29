@@ -1,6 +1,6 @@
 //
 //  MKLoanInfoCell.h
-//  PHI372-DC — Pencil b4hMw0 (产品申请-多) / LbSVz (产品申请-单)
+//  Pencil b4hMw0 (产品申请-多) / LbSVz (产品申请-单)
 //
 //  Loan details 整页 cell, 两层卡片堆叠 + 组装可复用子组件:
 //    底层 MKLoanProductHeroView (Hero 绿卡, 跨页面复用)

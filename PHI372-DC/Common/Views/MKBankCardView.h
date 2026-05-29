@@ -1,6 +1,5 @@
 //
 //  MKBankCardView.h
-//  PHI372-DC
 //  银行卡渐变卡片组件
 //
 

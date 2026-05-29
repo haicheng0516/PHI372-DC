@@ -1,6 +1,5 @@
 //
 //  SceneDelegate.m
-//  PHI372-DC
 //
 
 #import "SceneDelegate.h"

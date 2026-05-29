@@ -1,5 +1,5 @@
 //  MKKYCContactViewController.m
-//  PHI372-DC — Figma 3:1044 KYC-紧急联系人
+//  Figma 3:1044 KYC-紧急联系人
 //    - self.contacts: NSMutableArray<NSMutableDictionary*>, 3 个 dict (relation/relationKey/name/phone)
 //    - self.relationOptions / self.relationKeys: 从 /kyc/four/search-iterm 拿 buttonList[].label/key
 //    - self.emailValue: NSString
@@ -107,7 +107,7 @@ static const NSInteger kContactCount = 3;
             }
         }
         if (strongSelf.relationOptions.count == 0) {
-            // 后端没返时, 照 334 fallback
+            // 后端没返时, fallback
             strongSelf.relationOptions = @[@"Parent", @"Spouse", @"Sibling", @"Friend", @"Colleague", @"Other"];
             strongSelf.relationKeys = @[@"parent", @"spouse", @"sibling", @"friend", @"colleague", @"other"];
         }

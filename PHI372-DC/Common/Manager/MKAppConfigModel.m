@@ -1,6 +1,5 @@
 //
 //  MKAppConfigModel.m
-//  PHI372-DC
 //
 
 #import "MKAppConfigModel.h"

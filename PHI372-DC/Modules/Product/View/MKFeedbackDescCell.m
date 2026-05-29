@@ -1,6 +1,5 @@
 //
 //  MKFeedbackDescCell.m
-//  PHI372-DC
 //
 
 #import "MKFeedbackDescCell.h"

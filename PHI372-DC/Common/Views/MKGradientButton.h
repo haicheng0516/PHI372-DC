@@ -1,6 +1,5 @@
 //
 //  MKGradientButton.h
-//  PHI372-DC
 //
 
 #import <UIKit/UIKit.h>

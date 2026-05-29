@@ -1,6 +1,5 @@
 //
 //  MKBottomSheetView.h
-//  PHI372-DC
 //
 //  22 个底部弹窗统一实现 — 单类 + 枚举区分,从底部 slide-up 弹出。
 //  用户决策:不用页面中心弹窗,所有 modal 改 bottom sheet 形式。

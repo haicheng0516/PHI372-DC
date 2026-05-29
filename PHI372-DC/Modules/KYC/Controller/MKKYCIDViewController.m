@@ -1,5 +1,5 @@
 //  MKKYCIDViewController.m
-//  PHI372-DC — Figma 3:1099 KYC-身份证认证
+//  Figma 3:1099 KYC-身份证认证
 //    - /app/v3/kyc/four/search-iterm (kycId=identity_liveness) 拉证件类型 (取首个 buttonList[0].buttonKey)
 //    - face box → push Liveness, callback 回填 faceImage
 //    - front box → push IDCamera, callback 回填 idImage

@@ -1,6 +1,5 @@
 //
 //  MKPickerView.m
-//  PHI372-DC
 //
 //  历史遗留 picker — 早期色板不属于本项目 (kColorBgTeal 浅青 + kColorOrange 橙色, 跟主色深绿 #385330 不搭).
 //  2026-05-20 修正: 工厂方法转发给 MKBottomSheetTypeCommonPicker (Figma 3:1654 通用选择弹窗).

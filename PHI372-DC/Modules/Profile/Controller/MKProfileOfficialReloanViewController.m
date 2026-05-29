@@ -1,6 +1,6 @@
 //
 //  MKProfileOfficialReloanViewController.m
-//  PHI372-DC — 个人中心-官网
+//  个人中心-官网
 //
 //  设计稿 (375×812):
 //    顶部绿色 nav (#385330 r=0,0,14,14 h=98), 标题 "Official Website"

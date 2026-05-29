@@ -1,6 +1,5 @@
 //
 //  MKHomeProductCardView.h
-//  PHI372-DC
 //
 //  首页(KYC 后) 产品卡片 - 339x126
 //

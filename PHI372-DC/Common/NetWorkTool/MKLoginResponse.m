@@ -1,6 +1,5 @@
 //
 //  MKLoginResponse.m
-//  PHI372-DC
 //
 
 #import "MKLoginResponse.h"

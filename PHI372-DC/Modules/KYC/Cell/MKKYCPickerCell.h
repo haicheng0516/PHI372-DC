@@ -1,5 +1,4 @@
 //  MKKYCPickerCell.h
-//  PHI372-DC
 
 #import "MKBaseTableViewCell.h"
 

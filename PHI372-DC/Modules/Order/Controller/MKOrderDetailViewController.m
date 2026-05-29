@@ -483,7 +483,7 @@ static BOOL MKHasPositiveAmount(NSString *raw) {
     [rows addObject:@{ @"label":@"Interest",            @"hasInfo":@YES, @"value":interest  }];
     [rows addObject:@{ @"label":@"Service fee",         @"hasInfo":@YES, @"value":fee       }];
 
-    // 申请时间 — 259 规则: 存在 payoutDate 时隐藏申请时间, 仅显示放款时间
+    // 申请时间: 存在 payoutDate 时隐藏申请时间, 仅显示放款时间
     if (payoutDate.length > 0) {
         // 用同位 row "Date of application" label 显示 payoutDate (Pencil 4 个页面都没单独画 "Disbursement date" row,
         // 直接借位; 若你想分两行 row 后续再加)
@@ -502,14 +502,14 @@ static BOOL MKHasPositiveAmount(NSString *raw) {
     [rows addObject:@{ @"label":@"Total repayment",     @"hasInfo":@NO,
                        @"value":MKFmtMoney(info.totalRepaymentAmount) }];
 
-    // Amount of deduction — 无值不显 (259 hasReduction)
+    // Amount of deduction — 无值不显
     BOOL hasDeduction = MKHasPositiveAmount(info.reductionAmount);
     if (hasDeduction) {
         [rows addObject:@{ @"label":@"Amount of deduction", @"hasInfo":@NO,
                            @"value":MKFmtMoney(info.reductionAmount) }];
     }
 
-    // Service fee (重复) — Pencil hv74X 第二个 "Service fee" 位次=已还金额 (259 alreadyRepaymentAmount)
+    // Service fee (重复) — Pencil hv74X 第二个 "Service fee" 位次=已还金额
     // 保留 Pencil label 但取值用 alreadyRepaymentAmount; 无值不显
     BOOL hasRepaid = MKHasPositiveAmount(info.alreadyRepaymentAmount);
     if (hasRepaid) {
@@ -517,7 +517,7 @@ static BOOL MKHasPositiveAmount(NSString *raw) {
                            @"value":MKFmtMoney(info.alreadyRepaymentAmount) }];
     }
 
-    // Amount Due 剩余未还 — 60/63/61 显示(70 结清不显示); 减免和已还都无值则隐藏 (259 规则)
+    // Amount Due 剩余未还 — 60/63/61 显示(70 结清不显示); 减免和已还都无值则隐藏
     BOOL canShowAmountDue = (status == 60 || status == 63 || status == 61) && (hasDeduction || hasRepaid);
     if (canShowAmountDue) {
         double remain = [info.totalRepaymentAmount doubleValue]
@@ -528,7 +528,7 @@ static BOOL MKHasPositiveAmount(NSString *raw) {
                            @"value":MKFmtMoney([NSString stringWithFormat:@"%.0f", remain]) }];
     }
 
-    // Deferment charge 逾期费 — 仅 61 + 有值 (259 hasPenalty)
+    // Deferment charge 逾期费 — 仅 61 + 有值
     BOOL hasPenalty = (status == 61) && MKHasPositiveAmount(info.penaltyAmount);
     if (hasPenalty) {
         [rows addObject:@{ @"label":@"Deferment charge", @"hasInfo":@NO,

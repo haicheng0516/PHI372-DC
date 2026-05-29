@@ -1,6 +1,5 @@
 //
 //  MKKYCContactCombinedCell.h
-//  PHI372-DC
 //
 //  Figma 紧急联系人 — Name + Phone 合并卡 (上下两行 + 中间分隔线 + 一个 chevron).
 //  上半 Name: 不可编辑, 点击触发 onPickContact 调通讯录 (回填 name + phone).

@@ -1,6 +1,5 @@
 //
 //  MKSignInCardView.m
-//  PHI372-DC
 //
 //  Figma 3:1743 Sign in 主卡片 (18,103 339x512, fill #E9E9E4, radius 24)
 //  所有子元素坐标 = (Figma 绝对坐标) - (18, 103) 转为相对 card.

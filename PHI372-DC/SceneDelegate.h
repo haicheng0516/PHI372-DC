@@ -1,6 +1,5 @@
 //
 //  SceneDelegate.h
-//  PHI372-DC
 //
 //  Created by Seacity on 2026/5/19.
 //

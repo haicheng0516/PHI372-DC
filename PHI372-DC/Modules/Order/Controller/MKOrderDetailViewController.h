@@ -1,5 +1,5 @@
 //  MKOrderDetailViewController.h
-//  PHI372-DC — 统一订单详情页
+//  统一订单详情页
 //  同一 VC, 通过 orderStatus 驱动:
 //    - 卡片底色 (#11722E 审核 / #AF5D00 待还 / #0A7F93 待提 / #A0721B 逾期 / #6E1758 改卡 / ...)
 //    - 右上状态文案

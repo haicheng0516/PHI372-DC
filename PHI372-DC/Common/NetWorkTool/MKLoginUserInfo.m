@@ -1,6 +1,5 @@
 //
 //  MKLoginUserInfo.m
-//  PHI372-DC
 //
 
 #import "MKLoginUserInfo.h"

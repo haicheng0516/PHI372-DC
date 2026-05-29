@@ -1,5 +1,4 @@
 //  MKSeamlessOrderManager.m
-//  PHI372-DC
 
 #import "MKSeamlessOrderManager.h"
 #import "MKProductTermModel.h"
@@ -45,7 +44,7 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
 @property (nonatomic, assign) BOOL isWaitingForContactsPermission;
 @property (nonatomic, assign) BOOL hasCalledReadyAPI;
 
-// 二次权限自定义弹窗引用 (对齐 259 self.locationPermissionAlert / contactsPermissionAlert)
+// 二次权限自定义弹窗引用
 // 跳设置时动画 dismiss 会被 background 打断, 必须用 removeFromSuperview 立即移除
 @property (nonatomic, strong, nullable) MKBottomSheetView *locationPermissionAlert;
 @property (nonatomic, strong, nullable) MKBottomSheetView *contactsPermissionAlert;
@@ -128,7 +127,6 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
 }
 
 - (void)cancel {
-    // 对齐 259: cancel 不主动 notify didCancel — 由 caller (alert 按钮 / 流程节点) 决定要不要单独发 didCancelXxx
     [self.locationManager stopUpdatingLocation];
     self.isWaitingForLocationPermission = NO;
     self.isWaitingForContactsPermission = NO;
@@ -155,7 +153,7 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
     self.isDataCaptureOnly = NO;
     self.latitude = @"-360";
     self.longitude = @"-360";
-    // 清掉自定义权限弹窗 (对齐 259 line 177-185)
+    // 清掉自定义权限弹窗
     if (self.locationPermissionAlert) {
         [self.locationPermissionAlert removeFromSuperview];
         self.locationPermissionAlert = nil;
@@ -205,7 +203,6 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
 
 #pragma mark - Step 2: Location
 
-// 对齐 259 — 入口路由
 - (void)proceedToLocationCheck {
     [self updateState:MKSeamlessOrderStateCheckingLocation];
     if (self.isForceCaptureFlow) {
@@ -215,7 +212,6 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
     }
 }
 
-// 对齐 259 line 284-295
 - (CLAuthorizationStatus)getLocationAuthorizationStatus {
     if (self.locationManager) {
         if (@available(iOS 14.0, *)) {
@@ -228,13 +224,11 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
 #pragma clang diagnostic pop
 }
 
-// 对齐 259 line 297-301
 - (BOOL)isLocationAuthorized {
     CLAuthorizationStatus status = [self getLocationAuthorizationStatus];
     return (status == kCLAuthorizationStatusAuthorizedWhenInUse || status == kCLAuthorizationStatusAuthorizedAlways);
 }
 
-// 对齐 259 line 303-311
 - (void)setupLocationManager {
     if (self.locationManager) return;
     self.locationManager = [[CLLocationManager alloc] init];
@@ -242,7 +236,6 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
     self.locationManager.desiredAccuracy = kCLLocationAccuracyBest;
 }
 
-// 对齐 259 line 313-348
 - (void)checkLocationPermissionForForceCapture {
     // 先用类方法读 pre-status (在 setupLocationManager 之前, 避免设 delegate 触发回调)
     CLAuthorizationStatus preStatus;
@@ -275,7 +268,6 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
     }
 }
 
-// 对齐 259 line 350-375
 - (void)checkLocationPermissionForNonForceCapture {
     [self setupLocationManager];
 
@@ -296,7 +288,6 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
     }
 }
 
-// 对齐 259 line 377-414
 - (void)tryGetLocationForNonForceCapture {
     if (self.isLocationUpdating) return;
 
@@ -323,7 +314,6 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
     });
 }
 
-// 对齐 259 line 416-439
 - (void)startLocationUpdate {
     if (self.isLocationUpdating) return;
 
@@ -339,7 +329,6 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
 
 #pragma mark CLLocationManagerDelegate
 
-// 对齐 259 line 503-518 — hasCalledOrderAPI 是 guard
 - (void)locationManager:(CLLocationManager *)manager didUpdateLocations:(NSArray<CLLocation *> *)locations {
     if (locations.count > 0) {
         CLLocation *loc = locations[0];
@@ -353,7 +342,6 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
     }
 }
 
-// 对齐 259 line 520-547
 - (void)locationManager:(CLLocationManager *)manager didFailWithError:(NSError *)error {
     [self.locationManager stopUpdatingLocation];
     self.isLocationUpdating = NO;
@@ -463,7 +451,7 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
 #pragma mark - Permission Alerts
 
 - (void)showLocationPermissionAlert {
-    // 防重复 (对齐 259 line 1210-1212)
+    // 防重复
     if (self.locationPermissionAlert) return;
     if (![NSThread isMainThread]) {
         dispatch_async(dispatch_get_main_queue(), ^{ [self showLocationPermissionAlert]; });
@@ -535,7 +523,6 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
         return;
     }
 
-    // 对齐 259 line 558-562: 强抓必须拿到真实 lat/lon 才下单, 任何路径试图无定位 submit 都拒绝
     if (self.isForceCaptureFlow) {
         if (!self.latitude || [self.latitude isEqualToString:@"-360"] ||
             !self.longitude || [self.longitude isEqualToString:@"-360"]) {
@@ -620,7 +607,7 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
     }];
 }
 
-#pragma mark - Step 4: Data Capture (Router) — 对齐 259 line 717-726
+#pragma mark - Step 4: Data Capture (Router) 
 
 - (void)startDataCaptureFlowWithOrderId:(NSString *)orderId {
     // 强抓: 先查通讯录权限, 通过再上传设备 (避免用户不授权时浪费 device 上报)
@@ -632,7 +619,7 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
     }
 }
 
-#pragma mark - Step 5: Force Capture — 先查通讯录 (对齐 259 line 779-838)
+#pragma mark - Step 5: Force Capture — 先查通讯录
 
 - (void)checkContactsPermissionAfterOrderApplicationWithOrderId:(NSString *)orderId {
     if (![NSThread isMainThread]) {
@@ -678,7 +665,7 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
     }
 }
 
-#pragma mark - Step 6: 上传设备 (对齐 259 line 728-775)
+#pragma mark - Step 6: 上传设备
 
 - (void)collectAndUploadDeviceInfoWithOrderId:(NSString *)orderId {
     [self updateState:MKSeamlessOrderStateUploadingDevice];
@@ -718,7 +705,7 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
     });
 }
 
-#pragma mark - Step 7: 通讯录 (非强抓) — 对齐 259 line 840-883
+#pragma mark - Step 7: 通讯录 (非强抓) 
 
 - (void)checkContactsForce:(CNAuthorizationStatus)status {
     // 此方法保留兼容. 强抓流程已在 checkContactsPermissionAfterOrderApplicationWithOrderId 中处理.

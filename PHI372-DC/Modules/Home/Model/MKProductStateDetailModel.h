@@ -1,5 +1,5 @@
 //  MKProductStateDetailModel.h
-//  PHI372-DC — /app/v3/product/state 响应 data.amountDetailList 元素
+//  /app/v3/product/state 响应 data.amountDetailList 元素
 
 #import <Foundation/Foundation.h>
 

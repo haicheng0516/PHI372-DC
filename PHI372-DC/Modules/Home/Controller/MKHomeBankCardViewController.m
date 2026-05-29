@@ -1,5 +1,5 @@
 //  MKHomeBankCardViewController.m
-//  PHI372-DC — Pencil bPx5L 首页-银行卡 (银行卡列表)
+//  Pencil bPx5L 首页-银行卡 (银行卡列表)
 //    viewWillAppear → POST /app/v3/payAccountInfo/list (空 body) → 拉真实卡列表
 //    卡片右上 Default radio 点击 → POST /app/v3/payAccountInfo/setDefault → reload
 //    卡片 Submit (Edit) → push MKKYCBankCardEditViewController.bankCardBindId

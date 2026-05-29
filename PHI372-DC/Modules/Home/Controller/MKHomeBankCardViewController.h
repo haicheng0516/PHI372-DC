@@ -1,6 +1,5 @@
 //
 //  MKHomeBankCardViewController.h
-//  PHI372-DC
 //
 //  首页-银行卡 — Figma 3:1188
 //

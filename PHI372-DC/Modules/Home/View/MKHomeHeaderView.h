@@ -1,6 +1,5 @@
 //
 //  MKHomeHeaderView.h
-//  PHI372-DC
 //
 //  首页 tableHeaderView — 渐变背景 + Banner + Icon Grid.
 //

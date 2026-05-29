@@ -1,5 +1,4 @@
 //  MKLoanProductHeroView.h
-//  PHI372-DC
 //  Hero 绿卡 (#385330 r24)
 //    Full    — 244 高, 产品申请页 (含 sub-label + 大号 ₱amount + 钱袋 + chevron affordance)
 //    Compact — 171 高, 订单详情态 (审核中/待提现/待还款) — TODO: 后续接入时实现

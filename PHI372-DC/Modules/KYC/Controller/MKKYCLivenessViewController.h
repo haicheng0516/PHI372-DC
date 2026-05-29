@@ -1,6 +1,5 @@
 //
 //  MKKYCLivenessViewController.h
-//  PHI372-DC
 //
 //  KYC-活体认证中 — Figma 3:1155
 //

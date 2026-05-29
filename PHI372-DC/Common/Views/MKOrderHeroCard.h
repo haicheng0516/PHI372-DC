@@ -1,6 +1,6 @@
 //
 //  MKOrderHeroCard.h
-//  PHI372-DC — Figma 3:719 / 3:761 / 3:814 Order detail 顶部 Hero 卡 (状态色切换)
+//  Figma 3:719 / 3:761 / 3:814 Order detail 顶部 Hero 卡 (状态色切换)
 //
 //  尺寸: 339×171 r=14
 //  bgColor 由 state 决定:

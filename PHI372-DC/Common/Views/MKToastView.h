@@ -1,6 +1,5 @@
 //
 //  MKToastView.h
-//  PHI372-DC
 //
 //  通用吐司 / Tooltip 提示.
 //  Pencil b4hMw0 中间灰色块"Calculated based on..."就是这个,默认 2.5 秒自动消失.

@@ -62,7 +62,7 @@
     self.tableView.delegate = self;
     [self setupDefaultAccountRow];
     [self overrideTableHeightForPencilLayout];   // Pencil aKmfI: 表单 492 高, Submit 紧贴 toggle 下方
-    [self requestUserInfo];                       // 259 对齐: KYC 已认证 name 自动填入
+    [self requestUserInfo];                       // KYC 已认证 name 自动填入
 }
 
 /// Pencil t06hJ 这页是"独立面板"模式 — tableView 限高 492 (而非 KYC base 默认全屏)
@@ -288,7 +288,7 @@
             [item.itemCode rangeOfString:@"account" options:NSCaseInsensitiveSearch].location != NSNotFound) {
             cell.inputField.keyboardType = UIKeyboardTypeNumberPad;
         }
-        // 259 对齐: 用户名 Name 字段锁定不可编辑 (KYC 已认证, 排除 bankName)
+        // 用户名 Name 字段锁定不可编辑 (KYC 已认证, 排除 bankName)
         BOOL isNameField = [self isUserNameItemCode:item.itemCode];
         cell.inputField.enabled = !isNameField;
         cell.inputField.textColor = isNameField
@@ -334,7 +334,7 @@
         item.selectedKey = item.buttonList[idx].buttonKey;
         [strongSelf.tableView reloadRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:index inSection:0]]
                                     withRowAnimation:UITableViewRowAnimationNone];
-        // 级联 (照 259 BankAccountController:354-371): 选了 Account Type 后, 触发对应 list 接口填 Bank Name 选项
+        // 级联: 选了 Account Type 后, 触发对应 list 接口填 Bank Name 选项
         if ([strongSelf isAccountTypeCode:item.itemCode]) {
             [strongSelf loadBankNameOptionsForType:value ?: item.selectedKey];
         } else {

@@ -1,6 +1,5 @@
 //
 //  MKEmptyViewController.h
-//  PHI372-DC
 //
 //  空白页 — Figma 3:1325
 //

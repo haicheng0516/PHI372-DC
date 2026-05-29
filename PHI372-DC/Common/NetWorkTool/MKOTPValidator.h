@@ -1,6 +1,5 @@
 //
 //  MKOTPValidator.h
-//  PHI372-DC
 //
 //  验证码验证工具类 (6位纯数字)
 

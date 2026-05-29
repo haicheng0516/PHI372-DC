@@ -1,6 +1,6 @@
 //
 //  MKOrderRepayViewController.m
-//  PHI372-DC — Figma 3:869 历史订单-处理中-详情-待还款-还款 (Bill / Dragonpay 引导)
+//  Figma 3:869 历史订单-处理中-详情-待还款-还款 (Bill / Dragonpay 引导)
 //
 //  布局精确还原 (375×812):
 //    顶部 484pt 绿渐变 (与 Loan Details 同款) + 品牌绿 nav

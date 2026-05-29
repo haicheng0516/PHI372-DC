@@ -1,6 +1,5 @@
 //
 //  MKProfileViewController.h
-//  PHI372-DC
 //
 //  个人中心 — Figma 3:338
 //

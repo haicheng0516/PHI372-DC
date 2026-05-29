@@ -1,6 +1,5 @@
 //
 //  MKNavBar.m
-//  PHI372-DC
 //
 
 #import "MKNavBar.h"

@@ -1,6 +1,5 @@
 //
 //  MKNotificationPermissionCoordinator.m
-//  PHI372-DC
 //
 
 #import "MKNotificationPermissionCoordinator.h"

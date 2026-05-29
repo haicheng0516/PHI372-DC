@@ -1,6 +1,5 @@
 //
 //  MKRepaymentPlanCell.m
-//  PHI372-DC
 //
 
 #import "MKRepaymentPlanCell.h"

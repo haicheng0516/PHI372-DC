@@ -1,6 +1,5 @@
 //
 //  MKKYCInitResponse.h
-//  PHI372-DC
 //
 //  /app/v3/kyc/four/search-iterm 返回. 解析 kycItemList → MKKYCItemModel 数组.
 //

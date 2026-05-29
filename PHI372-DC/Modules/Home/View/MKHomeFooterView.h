@@ -1,6 +1,5 @@
 //
 //  MKHomeFooterView.h
-//  PHI372-DC
 //
 //  首页 tableFooterView — 4 个监管 logo + footnote.
 //
