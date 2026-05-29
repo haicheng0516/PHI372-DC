@@ -12,10 +12,11 @@
 #import "MKCommonParams.h"
 #import "MKEncryptManager.h"
 #import "MKLoginManager.h"
-#import "MKSignInViewController.h"
 #import "MKAppVersionResponse.h"
 #import "MKBottomSheetView.h"
 #import "MKAppEnvironment.h"
+// 注: MKSignInViewController 走 NSClassFromString 软引用, 不硬 import,
+//     避免 Common → Modules 反向依赖(模板提升时 Common 要单独可编译)
 
 // 需要重登的 resultCode (token 过期/被踢)
 static NSArray<NSString *> *kMKNeedLoginErrorCodes = nil;
@@ -87,10 +88,16 @@ static NSString * const kMKAppVersionPath        = @"/app/v3/app/version";
 #pragma mark - Navigation (强更/需重登时找 topVC)
 
 - (void)navigateToLoginPage {
+    // 软引用业务 Sign-In VC, 不强 import(模板可单编 Common)
+    Class signInClass = NSClassFromString(@"MKSignInViewController");
+    if (!signInClass) {
+        NSLog(@"[MKNet] MKSignInViewController 类未链接, 跳过 navigateToLoginPage");
+        return;
+    }
     UIViewController *currentVC = [self topViewController];
-    if ([currentVC isKindOfClass:[MKSignInViewController class]]) return;
+    if ([currentVC isKindOfClass:signInClass]) return;
 
-    MKSignInViewController *loginVC = [[MKSignInViewController alloc] init];
+    UIViewController *loginVC = [[signInClass alloc] init];
     UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:loginVC];
     navController.navigationBarHidden = YES;
     navController.modalPresentationStyle = UIModalPresentationFullScreen;
