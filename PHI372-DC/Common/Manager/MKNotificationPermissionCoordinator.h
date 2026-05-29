@@ -1,7 +1,7 @@
 //
 //  MKNotificationPermissionCoordinator.h
 //
-//  通知权限请求调度(对齐已上线 SeacityDC318 / IN464-DC):
+//  通知权限请求调度:
 //  - 一天检查一次(按日历日,凌晨 0 点重置)
 //  - 首次 notDetermined → 拉系统弹窗;同意埋 600 拉 FCM token;拒绝埋 601
 //  - denied → 显示二次引导弹窗(本项目封装的返回弹窗,引导去设置),弹窗显示即埋 601
