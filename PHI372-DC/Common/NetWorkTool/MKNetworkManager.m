@@ -15,6 +15,7 @@
 #import "MKAppVersionResponse.h"
 #import "MKBottomSheetView.h"
 #import "MKAppEnvironment.h"
+#import "MKDomainManager.h"
 // 注: MKSignInViewController 走 NSClassFromString 软引用, 不硬 import,
 //     避免 Common → Modules 反向依赖(模板提升时 Common 要单独可编译)
 
@@ -53,8 +54,12 @@ static NSString * const kMKAppVersionPath        = @"/app/v3/app/version";
         _manager.responseSerializer.acceptableContentTypes = [NSSet setWithObjects:@"application/json", @"text/json", @"text/plain", @"text/html", nil];
         _manager.requestSerializer.timeoutInterval = 30.0;
 
-        // 走 MKAppEnvironment 读 Info.plist 的 MKBaseURL, 每个项目改 Info.plist 即可
-        self.baseURLString = [MKAppEnvironment baseURL];
+        // baseURL fallback 链: MKDomainManager 缓存(支持远程下发) → Info.plist MKBaseURL
+        // 启动时 SceneDelegate 会调 [MKDomainManager loadConfigWithCompletion:] 更新缓存,
+        // 拿到新域名后会通过 [MKDomainManager getAPI] 反映到下次 sharedManager 取的 baseURLString
+        // (本属性 public 可写, 也可在 loadConfig 成功回调里手动 mgr.baseURLString = newAPI)
+        NSString *cached = [[MKDomainManager sharedManager] getAPI];
+        self.baseURLString = cached.length > 0 ? cached : [MKAppEnvironment baseURL];
     }
     return self;
 }
@@ -199,6 +204,67 @@ static NSString * const kMKAppVersionPath        = @"/app/v3/app/version";
         NSLog(@"[Error] %@", error.localizedDescription);
         if (failure) failure(error);
     }];
+}
+
+#pragma mark - POST with Domain Failover
+
+- (void)postWithDomainFailover:(NSString *)path
+                        params:(NSDictionary *)params
+                       success:(MKNetworkSuccess)success
+                       failure:(MKNetworkFailure)failure {
+    [self performPostWithFailover:path params:params retryCount:0 success:success failure:failure];
+}
+
+- (void)performPostWithFailover:(NSString *)path
+                         params:(NSDictionary *)params
+                     retryCount:(NSInteger)retryCount
+                        success:(MKNetworkSuccess)success
+                        failure:(MKNetworkFailure)failure {
+    // 无 baseURL → 直接失败 + 提示
+    if (self.baseURLString.length == 0) {
+        NSLog(@"[MKNet] failover skipped, baseURL empty");
+        [self showBusyHUD];
+        if (failure) failure([NSError errorWithDomain:@"MKDomain" code:-1
+                                             userInfo:@{NSLocalizedDescriptionKey: @"baseURL empty"}]);
+        return;
+    }
+
+    __weak typeof(self) wself = self;
+    [self post:path params:params success:success failure:^(NSError *error) {
+        __strong typeof(wself) sself = wself;
+        if (!sself) return;
+
+        NSInteger maxRetries = MAX(0, [[MKDomainManager sharedManager] getSourceCount] - 1);
+        if (retryCount >= maxRetries) {
+            NSLog(@"[MKNet] failover exhausted (%ld/%ld)", (long)retryCount, (long)maxRetries);
+            [sself showBusyHUD];
+            if (failure) failure(error);
+            return;
+        }
+
+        NSLog(@"[MKNet] request failed, try next source (retry %ld/%ld)", (long)(retryCount + 1), (long)maxRetries);
+        [[MKDomainManager sharedManager] tryNextSourceWithCompletion:^(BOOL switched, NSString *newDomain) {
+            if (switched && newDomain.length > 0) {
+                sself.baseURLString = newDomain;
+                NSLog(@"[MKNet] switched baseURL to: %@", newDomain);
+                [sself performPostWithFailover:path
+                                        params:params
+                                    retryCount:retryCount + 1
+                                       success:success
+                                       failure:failure];
+            } else {
+                [sself showBusyHUD];
+                if (failure) failure(error);
+            }
+        }];
+    }];
+}
+
+- (void)showBusyHUD {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [SVProgressHUD showErrorWithStatus:@"The system is busy. Please try again in 2 minutes."];
+        [SVProgressHUD dismissWithDelay:3.0];
+    });
 }
 
 #pragma mark - File Upload

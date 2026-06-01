@@ -8,6 +8,8 @@
 #import "MKSignInViewController.h"
 #import "MKHomeViewController.h"
 #import "MKNotificationPermissionCoordinator.h"
+#import "MKDomainManager.h"
+#import "MKNetworkManager.h"
 
 @implementation SceneDelegate
 
@@ -16,6 +18,22 @@
     if (![winScene isKindOfClass:[UIWindowScene class]]) return;
 
     self.window = [[UIWindow alloc] initWithWindowScene:winScene];
+
+    // 触发动态域名加载:
+    //   - 配置源为空(未接入远程下发) → 立即回调 NO, 不阻塞, 走 Info.plist MKBaseURL
+    //   - 有缓存 → 立即回调 YES + 后台静默刷新
+    //   - 无缓存 → 异步拉首个可用源, 拿到后回调更新 NetworkManager.baseURLString
+    //   不阻塞 UI 装载: 业务首次请求若赶在 load 完成前, 会用 initPrivate 时读到的 cache/fallback;
+    //   失败路径建议走 postWithDomainFailover 享受 tryNextSource 重试
+    [[MKDomainManager sharedManager] loadConfigWithCompletion:^(BOOL success) {
+        if (success) {
+            NSString *api = [[MKDomainManager sharedManager] getAPI];
+            if (api.length > 0) {
+                [MKNetworkManager sharedManager].baseURLString = api;
+                NSLog(@"[Scene] baseURL synced to: %@", api);
+            }
+        }
+    }];
 
     // LaunchScreen.storyboard 显示 Se_bg + logo + APP name 至 didFinishLaunching 完成,
     // 此时根据登录态直接装载首页或登录页 — 不需要再走中间 splash VC

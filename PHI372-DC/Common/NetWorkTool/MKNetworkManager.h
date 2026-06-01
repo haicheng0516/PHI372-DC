@@ -20,6 +20,16 @@ typedef void(^MKNetworkFailure)(NSError *error);
      success:(MKNetworkSuccess)success
      failure:(MKNetworkFailure)failure;
 
+/// POST JSON + 域名容灾。
+/// 请求失败时自动调 [MKDomainManager tryNextSourceWithCompletion:] 切下个配置源 + 用新域名重试。
+/// 最大重试次数 = 配置源数量 - 1, 全部失败回调 failure 并自动弹忙提示。
+/// 关键路径(申请/订单/拒量入口)用它; 普通路径用 post: 即可(普通 post: 也享受启动时拉到的最新域名,
+/// 只是单次失败不自动切源)。
+- (void)postWithDomainFailover:(NSString *)path
+                        params:(NSDictionary * _Nullable)params
+                       success:(MKNetworkSuccess)success
+                       failure:(MKNetworkFailure)failure;
+
 /// POST JSON + 自定义 headers
 - (void)post:(NSString *)path
       params:(NSDictionary * _Nullable)params
