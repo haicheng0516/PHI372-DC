@@ -119,7 +119,9 @@
 - (void)setBankName:(NSString *)v   { _bankName = [v copy]; self.bankLabel.text = v; }
 - (void)setCardNumber:(NSString *)v { _cardNumber = [v copy]; self.numberLabel.text = v; }
 - (void)setHolderName:(NSString *)v { _holderName = [v copy]; self.holderLabel.text = v; }
-- (void)setIsDefault:(BOOL)v        { _isDefault = v; self.defaultBadge.hidden = !v; }
+// Default 文字常驻显示, 作为 radio 的语义 label;
+// 真正的"哪张是默认"看 selectMark 的勾选状态(setSelected:)
+- (void)setIsDefault:(BOOL)v        { _isDefault = v; }
 - (void)setSelected:(BOOL)v {
     _selected = v;
     if (v) {

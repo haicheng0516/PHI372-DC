@@ -1,7 +1,7 @@
 //  MKHomeBankCardViewController.m
 //  Pencil bPx5L 首页-银行卡 (银行卡列表)
 //    viewWillAppear → POST /app/v3/payAccountInfo/list (空 body) → 拉真实卡列表
-//    卡片右上 Default radio 点击 → POST /app/v3/payAccountInfo/setDefault → reload
+//    卡片 tap (整张) → POST /app/v3/payAccountInfo/update { recordId, defaultFlag:"1" } → reload
 //    卡片 Submit (Edit) → 检查 editFlag==YES (后端下发, 订单审核中会锁) → push MKKYCBankCardEditViewController.bankCardBindId
 //                          editFlag=NO 时 toast 拦截, 避免审核期间改卡导致放款风险
 //    Add 按钮 → 检查 [MKLoginManager sharedManager].kycCompleted → push MKKYCBankCardEditViewController (新建模式, bindId=0)
@@ -145,17 +145,21 @@
     self.scrollView.contentSize = CGSizeMake(kScreenWidth, CGRectGetMaxY(self.cardsContainer.frame));
 }
 
-#pragma mark - /payAccountInfo/setDefault
+#pragma mark - /payAccountInfo/update (设默认)
 
 - (void)setAsDefault:(MKPayAccountModel *)card {
     if (card.defaultFlag) return;   // 已是默认, 不重复请求
+    // 后端约定: recordId 用字符串, 与参考项目 (PHI259/REXDC334/PHI327/PHI305) 一致
+    NSString *recordIdStr = card.recordId > 0
+        ? [NSString stringWithFormat:@"%ld", (long)card.recordId]
+        : (card.bankCardBindId > 0 ? [NSString stringWithFormat:@"%ld", (long)card.bankCardBindId] : @"");
     NSDictionary *body = [[MKEncryptManager sharedManager] generateRequestBody:@{
-        @"recordId": @(card.recordId),
+        @"recordId": recordIdStr,
         @"defaultFlag": @"1"
     }];
     [SVProgressHUD show];
     __weak typeof(self) wself = self;
-    [[MKNetworkManager sharedManager] post:@"/app/v3/payAccountInfo/setDefault"
+    [[MKNetworkManager sharedManager] post:@"/app/v3/payAccountInfo/update"
                                     params:body
                                    success:^(id resp) {
         [SVProgressHUD dismiss];
