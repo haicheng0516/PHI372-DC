@@ -16,6 +16,8 @@
 | 接口签名 / HMAC | `NetWorkTool/MKEncryptManager generateRequestBody:` | 自己拼 sign / 写 md5 |
 | 公共参数(appId/salt/deviceId/version/语言等) | `NetWorkTool/MKCommonParams.shared` | 散落多份 |
 | 项目专属环境值(appId/salt/baseURL/merchantId) | `NetWorkTool/MKAppEnvironment` 读 Info.plist | 写死字符串在源码 |
+| 动态域名(远程下发 + 多源降级) | `NetWorkTool/MKDomainManager.sharedManager` | 把域名写死在 Info.plist 上线 |
+| 请求级域名容灾(关键路径) | `[MKNetworkManager postWithDomainFailover:]` | 自己写重试循环 |
 | App 全局配置(rejectH5/feedbackGuidance/policyHref 等) | `Manager/MKAppConfigManager.sharedManager.currentAppConfig` | 各模块自己请求 |
 
 ### 用户态 / 登录
@@ -74,8 +76,9 @@
   - `2009006` → 自动拉版本 + 弹强更(走 `MKBottomSheetView`)
   - 业务回调拿到的 success 已是过滤后的
 - **User-Agent** 每次请求自动设(从 `MKCommonParams` 拼 appId/version/device/iOS 版本)
-- **baseURL** 启动时从 `MKAppEnvironment.baseURL` 读 Info.plist `MKBaseURL`
+- **baseURL fallback 链**: 启动时优先取 `[MKDomainManager getAPI]` 缓存(远程下发), 无缓存回落 `MKAppEnvironment.baseURL` 读 Info.plist `MKBaseURL`; SceneDelegate `loadConfigWithCompletion:` 拿到新域名后会同步到 `[MKNetworkManager sharedManager].baseURLString`
 - **路径以 `http` 开头时**:绕过 baseURL 拼接
+- **请求级域名容灾**: 关键路径用 `postWithDomainFailover:`,失败时自动调 `[MKDomainManager tryNextSource]` 切下个配置源 + 重试; 普通 `post:` 不做容灾
 
 ### 签名层 (`MKEncryptManager`)
 
@@ -156,10 +159,11 @@ Common 跨所有模块,改一个接口可能 break N 个模块。
 
 | 类 | 职责 |
 |---|---|
-| `MKNetworkManager` | HTTP POST 入口,内置全局错误码拦截(重登/强更)、UA、baseURL 拼接、文件上传 |
+| `MKNetworkManager` | HTTP POST 入口,内置全局错误码拦截(重登/强更)、UA、baseURL 拼接、文件上传;含 `postWithDomainFailover:` 请求级容灾 |
+| `MKDomainManager` | 动态域名:远程下发(GitHub/Gitee/Pastebin/Custom raw) + 多源降级 + 缓存 + 项目隔离(bundleId 后缀);Sea/City 前后缀混淆;配置源默认空数组 TODO,真接入时项目自填 |
 | `MKEncryptManager` | `generateRequestBody:` HMAC 签名 + 公参注入 |
 | `MKCommonParams` | 公共参数单例(appId/salt/deviceId/version/语言等),启动时从 `MKAppEnvironment` 取 |
-| `MKAppEnvironment` | 项目专属配置读取:`appId` / `salt` / `baseURL` / `merchantId` 全从 Info.plist 读 |
+| `MKAppEnvironment` | 项目专属配置读取:`appId` / `salt` / `baseURL` / `merchantId` 全从 Info.plist 读(baseURL 是 MKDomainManager 缓存缺失时的兜底) |
 | `MKLoginResponse` | 登录接口响应包装 |
 | `MKLoginUserInfo` | 用户态 model |
 | `MKOTPValidator` | OTP 校验 + 倒计时 |
