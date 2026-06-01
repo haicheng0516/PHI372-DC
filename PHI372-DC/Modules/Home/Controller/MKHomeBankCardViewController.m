@@ -1,9 +1,12 @@
 //  MKHomeBankCardViewController.m
 //  Pencil bPx5L 首页-银行卡 (银行卡列表)
 //    viewWillAppear → POST /app/v3/payAccountInfo/list (空 body) → 拉真实卡列表
+//                  → POST /app/v3/kyc/four/status → 拿 kycStep ("-1" 表示已完成所有 KYC)
 //    卡片右上 Default radio 点击 → POST /app/v3/payAccountInfo/setDefault → reload
-//    卡片 Submit (Edit) → push MKKYCBankCardEditViewController.bankCardBindId
-//    Add 按钮 → push MKKYCBankCardEditViewController (新建模式, bindId=0)
+//    卡片 Submit (Edit) → 检查 editFlag==YES (后端下发, 订单审核中会锁) → push MKKYCBankCardEditViewController.bankCardBindId
+//                          editFlag=NO 时 toast 拦截, 避免审核期间改卡导致放款风险
+//    Add 按钮 → 检查 kycStep=="-1" → push MKKYCBankCardEditViewController (新建模式, bindId=0)
+//                kycStep≠"-1" 时 toast 拦截, 避免 KYC 未过加卡导致数据脏
 
 #import "MKHomeBankCardViewController.h"
 #import "MKConstants.h"
@@ -23,6 +26,7 @@
 @property (nonatomic, strong) NSArray<MKPayAccountModel *> *cards;
 @property (nonatomic, strong) MKHintBannerView *hint;
 @property (nonatomic, strong) UIButton *addButton;
+@property (nonatomic, copy)   NSString *kycStep;                // "-1"=KYC 全部完成, 其他=未完成
 @end
 
 @implementation MKHomeBankCardViewController
@@ -44,6 +48,7 @@
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
     [self requestPayAccountList];
+    [self requestKycStatus];
 }
 
 #pragma mark - Setup
@@ -141,6 +146,23 @@
     self.scrollView.contentSize = CGSizeMake(kScreenWidth, CGRectGetMaxY(self.cardsContainer.frame));
 }
 
+#pragma mark - /kyc/four/status
+
+- (void)requestKycStatus {
+    NSDictionary *body = [[MKEncryptManager sharedManager] generateRequestBody:@{}];
+    __weak typeof(self) wself = self;
+    [[MKNetworkManager sharedManager] post:@"/app/v3/kyc/four/status"
+                                    params:body
+                                   success:^(id resp) {
+        if ([resp isKindOfClass:[NSDictionary class]] && [resp[@"resultCode"] integerValue] == 200) {
+            id step = ((NSDictionary *)resp[@"data"])[@"kycStep"];
+            wself.kycStep = [step isKindOfClass:[NSString class]]
+                ? (NSString *)step
+                : [NSString stringWithFormat:@"%@", step ?: @""];
+        }
+    } failure:nil];
+}
+
 #pragma mark - /payAccountInfo/setDefault
 
 - (void)setAsDefault:(MKPayAccountModel *)card {
@@ -170,12 +192,27 @@
 #pragma mark - Navigation
 
 - (void)pushEditPageForCard:(MKPayAccountModel *)card {
+    // 守卫: editFlag 由后端按订单状态下发, 订单审核期间锁卡(editFlag=NO)
+    // 避免审核期间改卡 → 放款打到 mismatch 卡 / 风控异常 / 资金损失
+    if (!card.editFlag) {
+        [SVProgressHUD showInfoWithStatus:@"You cannot change the payout account while an order is being processed."];
+        [SVProgressHUD dismissWithDelay:2.0];
+        return;
+    }
     MKKYCBankCardEditViewController *vc = [[MKKYCBankCardEditViewController alloc] init];
     vc.bankCardBindId = card.bankCardBindId;
     [self.navigationController pushViewController:vc animated:YES];
 }
 
 - (void)addTapped {
+    // 守卫: KYC 全部完成(kycStep=="-1")才允许加新卡
+    // 避免 KYC 未通过加卡 → 数据脏 / 卡无法用于放款 / 风控异常
+    // 接口失败/未回时 kycStep 为空字符串, 同样阻止(保守兜底)
+    if (![self.kycStep isEqualToString:@"-1"]) {
+        [SVProgressHUD showInfoWithStatus:@"Please complete KYC verification before adding a payout account."];
+        [SVProgressHUD dismissWithDelay:2.0];
+        return;
+    }
     // 新建模式: bankCardBindId=0, BankCardEditVC 内部根据此 flag 走 /save 而非 /update
     MKKYCBankCardEditViewController *vc = [[MKKYCBankCardEditViewController alloc] init];
     [self.navigationController pushViewController:vc animated:YES];
