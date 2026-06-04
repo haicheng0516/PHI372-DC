@@ -283,6 +283,11 @@ replacementString:(NSString *)string {
 - (NSString *)mobile { return self.mobileField.text; }
 - (NSString *)otp    { return self.otpField.text; }
 
+- (void)setSignInBusy:(BOOL)busy {
+    self.signInButton.enabled = !busy;
+    self.signInButton.alpha = busy ? 0.6 : 1.0;
+}
+
 #pragma mark - Countdown
 
 - (void)startOTPCountdown:(NSInteger)seconds {

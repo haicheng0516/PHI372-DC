@@ -80,6 +80,7 @@
 
 @interface MKProfileViewController ()
 @property (nonatomic, copy) NSArray<NSArray<NSDictionary *> *> *sections;
+@property (nonatomic, strong) UILabel *userInfoLabel;  // 头部 label: 已 KYC 显 name, 否则显 AppName
 @end
 
 @implementation MKProfileViewController
@@ -105,6 +106,51 @@
     [super viewWillAppear:animated];
     // 预拉协议/配置链接,供 Terms / Privacy 打开远程网页
     [[MKAppConfigManager sharedManager] loadConfig];
+    // 拉用户信息: 已 KYC 后端返 name, 用于头部 label 替换 AppName
+    [self refreshUserInfo];
+}
+
+#pragma mark - App Icon (从 Info.plist 系统方法读取, 跟 Bundle Icon 自动同步)
+
+// 标准实现: CFBundleIcons → CFBundlePrimaryIcon → CFBundleIconFiles → 取最大尺寸
+// iOS 17+ universal icon 走 fallback CFBundleIconFile
+- (UIImage *)mk_appIconImage {
+    NSDictionary *info = [[NSBundle mainBundle] infoDictionary];
+    NSArray *files = info[@"CFBundleIcons"][@"CFBundlePrimaryIcon"][@"CFBundleIconFiles"];
+    NSString *iconName = files.lastObject;
+    if (iconName.length > 0) {
+        UIImage *img = [UIImage imageNamed:iconName];
+        if (img) return img;
+    }
+    NSString *fallback = info[@"CFBundleIconFile"];
+    if (fallback.length > 0) {
+        UIImage *img = [UIImage imageNamed:fallback];
+        if (img) return img;
+    }
+    return nil;
+}
+
+#pragma mark - 用户信息 (头部 label)
+
+- (void)refreshUserInfo {
+    // adid 字段不参与签名(同 Home 实现)
+    NSDictionary *body = [[MKEncryptManager sharedManager] generateRequestBodyWithSignData:@{}
+                                                                                requestData:@{@"adid": @""}];
+    __weak typeof(self) wself = self;
+    [[MKNetworkManager sharedManager] post:@"/app/v3/user/info"
+                                    params:body
+                                   success:^(id resp) {
+        if (![resp isKindOfClass:[NSDictionary class]]) return;
+        if ([resp[@"resultCode"] integerValue] != 200) return;
+        NSDictionary *d = resp[@"data"];
+        if (![d isKindOfClass:[NSDictionary class]]) return;
+        NSString *name = d[@"name"];
+        if (name.length > 0) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                wself.userInfoLabel.text = name;
+            });
+        }
+    } failure:^(NSError *e) {}];
 }
 
 - (void)buildItems {
@@ -145,25 +191,25 @@
     mask.backgroundColor = MKColorAlpha(56, 83, 48, 0.9);
     [header addSubview:mask];
 
-    // Avatar (Figma 1:2: 163,103 50×50 圆, stroke #385330 1px)
-    UIView *avatar = [[UIView alloc] initWithFrame:CGRectMake(kScaleW(163), kScaleH(103), kScaleW(50), kScaleW(50))];
+    // Avatar (Figma 1:2: 163,103 50×50 圆, stroke #385330 1px) — App 图标
+    UIImageView *avatar = [[UIImageView alloc] initWithFrame:CGRectMake(kScaleW(163), kScaleH(103), kScaleW(50), kScaleW(50))];
+    avatar.image = [self mk_appIconImage];
+    avatar.contentMode = UIViewContentModeScaleAspectFill;
     avatar.backgroundColor = kColorWhite;
     avatar.layer.cornerRadius = kScaleW(25);
     avatar.layer.borderWidth = 1;
     avatar.layer.borderColor = kColorPrimary.CGColor;
-    avatar.layer.shadowColor = [UIColor blackColor].CGColor;
-    avatar.layer.shadowOpacity = 0.01;
-    avatar.layer.shadowOffset = CGSizeMake(0, 4);
-    avatar.layer.shadowRadius = 4;
+    avatar.clipsToBounds = YES;
     [header addSubview:avatar];
 
-    // Appname (Figma 1:12: 145,167 86×22, Inter 500 18, white, center) — 走 Info.plist 显示名
-    UILabel *appName = [[UILabel alloc] initWithFrame:CGRectMake(0, kScaleH(167), kScreenWidth, kScaleH(22))];
-    appName.text = MKAppDisplayName();
-    appName.textAlignment = NSTextAlignmentCenter;
-    appName.font = kFontMedium(18);
-    appName.textColor = kColorWhite;
-    [header addSubview:appName];
+    // 头部 label (Figma 1:12: 145,167 86×22, Inter 500 18, white, center)
+    // 默认显示 AppDisplayName, viewWillAppear 拉 /user/info, 后端返 name 时替换为 username (已 KYC)
+    self.userInfoLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, kScaleH(167), kScreenWidth, kScaleH(22))];
+    self.userInfoLabel.text = MKAppDisplayName();
+    self.userInfoLabel.textAlignment = NSTextAlignmentCenter;
+    self.userInfoLabel.font = kFontMedium(18);
+    self.userInfoLabel.textColor = kColorWhite;
+    [header addSubview:self.userInfoLabel];
 }
 
 - (void)setupBackButton {

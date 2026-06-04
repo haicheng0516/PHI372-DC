@@ -153,6 +153,9 @@
         return;
     }
 
+    // 防连点: 校验通过后立即禁用按钮 + alpha 0.6, 完成时(成功跳走/失败/异常)恢复
+    [self.cardView setSignInBusy:YES];
+
     NSString *normalized = [MKPhoneValidator submitPhoneNumber:phone];
     NSString *deviceId = [MKCommonParams shared].deviceId ?: @"";
 
@@ -173,6 +176,7 @@
         MKLoginResponse *r = [[MKLoginResponse alloc] initWithDictionary:resp];
         NSLog(@"[Login] parsed resultCode=%ld msg=%@ userId=%@ token=%@", (long)r.resultCode, r.resultMsg, r.data.userId, r.data.token);
         if (![r isSuccess]) {
+            [self.cardView setSignInBusy:NO];
             [SVProgressHUD showErrorWithStatus:r.resultMsg ?: @"Login failed"];
             return;
         }
@@ -187,6 +191,7 @@
             [self enterHome];
         });
     } failure:^(NSError *error) {
+        [self.cardView setSignInBusy:NO];
         [SVProgressHUD showErrorWithStatus:@"Network error"];
     }];
 }

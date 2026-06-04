@@ -28,6 +28,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)startOTPCountdown:(NSInteger)seconds;
 /// 强制重置按钮回 "Get OTP"
 - (void)resetOTPButton;
+/// 切 Sign in 按钮 busy 态: YES → disable + alpha 0.6 防连点; NO → 恢复
+- (void)setSignInBusy:(BOOL)busy;
 
 @end
 
