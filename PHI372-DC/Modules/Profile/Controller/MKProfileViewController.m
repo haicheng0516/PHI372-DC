@@ -118,6 +118,7 @@
             @{ @"title": @"About",                  @"symbol": @"person",                                @"cls": @"MKProfileAboutViewController" },
             @{ @"title": @"Terms of the loan",      @"symbol": @"doc.plaintext",                         @"cls": @"_WEB_TERMS_" },
             @{ @"title": @"Privacy policy",         @"symbol": @"lock.shield",                           @"cls": @"_WEB_PRIVACY_" },
+            @{ @"title": @"Delete Account",         @"symbol": @"trash",                                 @"cls": @"_DELETE_ACCOUNT_" },
             @{ @"title": @"Log out",                @"symbol": @"rectangle.portrait.and.arrow.right",    @"cls": @"_LOGOUT_" },
         ],
     ];
@@ -186,8 +187,8 @@
     UIView *c1 = [self buildCardAtY:239 height:166 topPad:24 items:self.sections[0] sectionIdx:0];
     [self.view addSubview:c1];
 
-    // Card 2: (18,417) 339×205  顶部 padding=19  行高 49
-    UIView *c2 = [self buildCardAtY:417 height:205 topPad:19 items:self.sections[1] sectionIdx:1];
+    // Card 2: (18,417) 339×254  顶部 padding=19  行高 49 (5 项: 含 Delete Account)
+    UIView *c2 = [self buildCardAtY:417 height:254 topPad:19 items:self.sections[1] sectionIdx:1];
     [self.view addSubview:c2];
 }
 
@@ -224,6 +225,11 @@
         MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypeLogoutConfirm config:nil];
         __weak typeof(self) wself = self;
         sheet.onConfirmTapped = ^{ [wself performLogout]; };
+        [sheet show];
+    } else if ([cls isEqualToString:@"_DELETE_ACCOUNT_"]) {
+        MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypeAccountDelete config:nil];
+        __weak typeof(self) wself = self;
+        sheet.onConfirmTapped = ^{ [wself performDeleteAccount]; };
         [sheet show];
     } else if ([cls isEqualToString:@"_WEB_TERMS_"]) {
         [self openProtocol:NO];
@@ -288,6 +294,43 @@
         [SVProgressHUD dismiss];
         [wself goToSignIn];
     }];
+}
+
+#pragma mark - Delete Account (苹果 5.1.1(v) 合规)
+
+- (void)performDeleteAccount {
+    NSDictionary *body = [[MKEncryptManager sharedManager] generateRequestBody:@{}];
+    [SVProgressHUD showWithStatus:@"Processing..."];
+    __weak typeof(self) wself = self;
+    [[MKNetworkManager sharedManager] post:@"/app/v3/auth/close"
+                                    params:body
+                                   success:^(id resp) {
+        [SVProgressHUD dismiss];
+        NSInteger code = [resp[@"resultCode"] integerValue];
+        if (code == 200) {
+            [wself showDeleteAccountSuccess];
+        } else {
+            [wself showDeleteAccountFail];
+        }
+    } failure:^(NSError *error) {
+        [SVProgressHUD dismiss];
+        [wself showDeleteAccountFail];
+    }];
+}
+
+- (void)showDeleteAccountSuccess {
+    MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypeAccountDeleteSuccess config:nil];
+    __weak typeof(self) wself = self;
+    sheet.onConfirmTapped = ^{
+        [[MKLoginManager sharedManager] logout];
+        [wself goToSignIn];
+    };
+    [sheet show];
+}
+
+- (void)showDeleteAccountFail {
+    MKBottomSheetView *sheet = [MKBottomSheetView sheetWithType:MKBottomSheetTypeAccountDeleteFail config:nil];
+    [sheet show];
 }
 
 - (void)goToSignIn {

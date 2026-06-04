@@ -26,6 +26,8 @@
 
 @property (nonatomic, strong) UIButton *checkbox;
 @property (nonatomic, strong) UILabel *agreementLabel;
+@property (nonatomic, assign) NSRange privacyPolicyRange;
+@property (nonatomic, assign) NSRange serviceAgreementRange;
 
 @property (nonatomic, strong) UIButton *signInButton;
 
@@ -192,7 +194,40 @@
         [att addAttribute:NSUnderlineStyleAttributeName value:@(NSUnderlineStyleSingle) range:r2];
     }
     self.agreementLabel.attributedText = att;
+    self.privacyPolicyRange = r1;
+    self.serviceAgreementRange = r2;
+    self.agreementLabel.userInteractionEnabled = YES;
+    UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self
+                                                                          action:@selector(handleAgreementTap:)];
+    [self.agreementLabel addGestureRecognizer:tap];
     [self addSubview:self.agreementLabel];
+}
+
+// 用 NSLayoutManager 把 tap 点定位到 attributedText 字符 index, 再判落在哪段
+- (void)handleAgreementTap:(UITapGestureRecognizer *)tap {
+    UILabel *label = self.agreementLabel;
+    NSAttributedString *attr = label.attributedText;
+    if (attr.length == 0) return;
+
+    NSLayoutManager *lm = [[NSLayoutManager alloc] init];
+    NSTextContainer *tc = [[NSTextContainer alloc] initWithSize:label.bounds.size];
+    NSTextStorage *ts = [[NSTextStorage alloc] initWithAttributedString:attr];
+    [ts addLayoutManager:lm];
+    [lm addTextContainer:tc];
+    tc.lineFragmentPadding = 0;
+    tc.lineBreakMode = label.lineBreakMode;
+    tc.maximumNumberOfLines = label.numberOfLines;
+
+    CGPoint p = [tap locationInView:label];
+    NSUInteger idx = [lm characterIndexForPoint:p
+                                inTextContainer:tc
+       fractionOfDistanceBetweenInsertionPoints:NULL];
+
+    if (NSLocationInRange(idx, self.privacyPolicyRange)) {
+        if (self.onPrivacyPolicyTapped) self.onPrivacyPolicyTapped();
+    } else if (NSLocationInRange(idx, self.serviceAgreementRange)) {
+        if (self.onServiceAgreementTapped) self.onServiceAgreementTapped();
+    }
 }
 
 #pragma mark - 4) Sign in button

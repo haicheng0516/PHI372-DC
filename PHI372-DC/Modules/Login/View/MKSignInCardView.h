@@ -21,6 +21,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, nullable) void (^onGetOTPTapped)(void);
 @property (nonatomic, copy, nullable) void (^onSignInTapped)(void);
 @property (nonatomic, copy, nullable) void (^onAgreementCheckToggled)(BOOL checked);
+@property (nonatomic, copy, nullable) void (^onPrivacyPolicyTapped)(void);
+@property (nonatomic, copy, nullable) void (^onServiceAgreementTapped)(void);
 
 /// 启动 N 秒倒计时, 按钮 disable + 显示 "Ns"
 - (void)startOTPCountdown:(NSInteger)seconds;

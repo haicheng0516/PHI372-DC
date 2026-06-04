@@ -15,6 +15,9 @@
 #import "MKOTPValidator.h"
 #import "MKLoginResponse.h"
 #import "MKLoginUserInfo.h"
+#import "MKAppConfigManager.h"
+#import "MKAppConfigModel.h"
+#import "MKWebViewViewController.h"
 #import <SVProgressHUD/SVProgressHUD.h>
 
 @interface MKSignInViewController ()
@@ -49,6 +52,39 @@
     __weak typeof(self) wself = self;
     self.cardView.onGetOTPTapped = ^{ [wself requestOTP]; };
     self.cardView.onSignInTapped = ^{ [wself doSignIn]; };
+    self.cardView.onPrivacyPolicyTapped = ^{
+        [wself openAgreementURLProvider:^NSString *(MKAppConfigModel *cfg) { return cfg.policyHref; }
+                                  title:@"Privacy Policy"];
+    };
+    self.cardView.onServiceAgreementTapped = ^{
+        [wself openAgreementURLProvider:^NSString *(MKAppConfigModel *cfg) { return cfg.agreementHref; }
+                                  title:@"Service Agreement"];
+    };
+}
+
+// 取 AppConfig 中的 URL 并 push WebView; 未加载先拉一次, 拉失败提示
+- (void)openAgreementURLProvider:(NSString *(^)(MKAppConfigModel *cfg))urlBlock title:(NSString *)title {
+    MKAppConfigManager *cfgMgr = [MKAppConfigManager sharedManager];
+    NSString *cached = urlBlock(cfgMgr.currentAppConfig);
+    if (cached.length > 0) {
+        [self pushWebViewURL:cached title:title];
+        return;
+    }
+    [SVProgressHUD showWithStatus:@"Loading..."];
+    [cfgMgr loadConfigWithCompletion:^(MKAppConfigModel * _Nullable config) {
+        [SVProgressHUD dismiss];
+        NSString *url = urlBlock(config);
+        if (url.length == 0) {
+            [SVProgressHUD showErrorWithStatus:@"Link unavailable"];
+            return;
+        }
+        [self pushWebViewURL:url title:title];
+    }];
+}
+
+- (void)pushWebViewURL:(NSString *)url title:(NSString *)title {
+    MKWebViewViewController *web = [[MKWebViewViewController alloc] initWithURL:url title:title];
+    [self.navigationController pushViewController:web animated:YES];
 }
 
 #pragma mark - API: 发 OTP
