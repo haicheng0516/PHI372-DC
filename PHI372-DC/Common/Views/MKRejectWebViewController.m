@@ -17,7 +17,7 @@
 /// H5 ScriptMessage 名。H5 联调时需确认与前端约定值一致(占位 native)。
 static NSString * const kRejectScriptMessageName = @"native";
 
-@interface MKRejectWebViewController () <WKNavigationDelegate, WKScriptMessageHandler>
+@interface MKRejectWebViewController () <WKNavigationDelegate, WKScriptMessageHandler, WKUIDelegate>
 @property (nonatomic, strong) WKWebView *rejectWebView;
 @property (nonatomic, strong) WKUserContentController *userContentController;
 @property (nonatomic, copy)   NSString  *rejectURLString;
@@ -49,6 +49,7 @@ static NSString * const kRejectScriptMessageName = @"native";
 
     self.rejectWebView = [[WKWebView alloc] initWithFrame:CGRectZero configuration:cfg];
     self.rejectWebView.navigationDelegate = self;
+    self.rejectWebView.UIDelegate = self;
     self.rejectWebView.backgroundColor = [UIColor whiteColor];
     self.rejectWebView.opaque = NO;
     [self.view addSubview:self.rejectWebView];
@@ -159,6 +160,50 @@ decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler {
     [super viewWillDisappear:animated];
     // 在 VC 消失时主动 remove, 避免依赖 dealloc(此时 webView 可能已被 ARC 提前释放)
     [self.userContentController removeScriptMessageHandlerForName:kRejectScriptMessageName];
+}
+
+#pragma mark - WKUIDelegate (JS alert/confirm/prompt → 原生 alert)
+
+- (void)webView:(WKWebView *)webView
+runJavaScriptAlertPanelWithMessage:(NSString *)message
+initiatedByFrame:(WKFrameInfo *)frame
+completionHandler:(void (^)(void))completionHandler {
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:nil
+                                                                message:message
+                                                         preferredStyle:UIAlertControllerStyleAlert];
+    [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault
+                                        handler:^(UIAlertAction *_){ completionHandler(); }]];
+    [self presentViewController:a animated:YES completion:nil];
+}
+
+- (void)webView:(WKWebView *)webView
+runJavaScriptConfirmPanelWithMessage:(NSString *)message
+initiatedByFrame:(WKFrameInfo *)frame
+completionHandler:(void (^)(BOOL))completionHandler {
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:nil
+                                                                message:message
+                                                         preferredStyle:UIAlertControllerStyleAlert];
+    [a addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel
+                                        handler:^(UIAlertAction *_){ completionHandler(NO); }]];
+    [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault
+                                        handler:^(UIAlertAction *_){ completionHandler(YES); }]];
+    [self presentViewController:a animated:YES completion:nil];
+}
+
+- (void)webView:(WKWebView *)webView
+runJavaScriptTextInputPanelWithPrompt:(NSString *)prompt
+defaultText:(NSString *)defaultText
+initiatedByFrame:(WKFrameInfo *)frame
+completionHandler:(void (^)(NSString * _Nullable))completionHandler {
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:nil
+                                                                message:prompt
+                                                         preferredStyle:UIAlertControllerStyleAlert];
+    [a addTextFieldWithConfigurationHandler:^(UITextField *tf) { tf.text = defaultText; }];
+    [a addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel
+                                        handler:^(UIAlertAction *_){ completionHandler(nil); }]];
+    [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault
+                                        handler:^(UIAlertAction *_){ completionHandler(a.textFields.firstObject.text); }]];
+    [self presentViewController:a animated:YES completion:nil];
 }
 
 @end

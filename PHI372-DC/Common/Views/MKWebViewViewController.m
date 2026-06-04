@@ -8,7 +8,7 @@
 #import <Masonry/Masonry.h>
 #import <SVProgressHUD/SVProgressHUD.h>
 
-@interface MKWebViewViewController () <WKNavigationDelegate>
+@interface MKWebViewViewController () <WKNavigationDelegate, WKUIDelegate>
 @property (nonatomic, strong) WKWebView *webView;
 @property (nonatomic, copy) NSString *urlString;
 @end
@@ -31,6 +31,7 @@
     WKWebViewConfiguration *cfg = [WKWebViewConfiguration new];
     self.webView = [[WKWebView alloc] initWithFrame:CGRectZero configuration:cfg];
     self.webView.navigationDelegate = self;
+    self.webView.UIDelegate = self;
     self.webView.backgroundColor = kColorBackground;
     [self.view addSubview:self.webView];
     [self.webView mas_makeConstraints:^(MASConstraintMaker *make) {
@@ -88,6 +89,50 @@ decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler {
 - (void)webView:(WKWebView *)webView didFailProvisionalNavigation:(WKNavigation *)navigation withError:(NSError *)error {
     [SVProgressHUD showErrorWithStatus:@"Failed to load"];
     [SVProgressHUD dismissWithDelay:1.5];
+}
+
+#pragma mark - WKUIDelegate (JS alert/confirm/prompt → 原生 alert)
+
+- (void)webView:(WKWebView *)webView
+runJavaScriptAlertPanelWithMessage:(NSString *)message
+initiatedByFrame:(WKFrameInfo *)frame
+completionHandler:(void (^)(void))completionHandler {
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:nil
+                                                                message:message
+                                                         preferredStyle:UIAlertControllerStyleAlert];
+    [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault
+                                        handler:^(UIAlertAction *_){ completionHandler(); }]];
+    [self presentViewController:a animated:YES completion:nil];
+}
+
+- (void)webView:(WKWebView *)webView
+runJavaScriptConfirmPanelWithMessage:(NSString *)message
+initiatedByFrame:(WKFrameInfo *)frame
+completionHandler:(void (^)(BOOL))completionHandler {
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:nil
+                                                                message:message
+                                                         preferredStyle:UIAlertControllerStyleAlert];
+    [a addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel
+                                        handler:^(UIAlertAction *_){ completionHandler(NO); }]];
+    [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault
+                                        handler:^(UIAlertAction *_){ completionHandler(YES); }]];
+    [self presentViewController:a animated:YES completion:nil];
+}
+
+- (void)webView:(WKWebView *)webView
+runJavaScriptTextInputPanelWithPrompt:(NSString *)prompt
+defaultText:(NSString *)defaultText
+initiatedByFrame:(WKFrameInfo *)frame
+completionHandler:(void (^)(NSString * _Nullable))completionHandler {
+    UIAlertController *a = [UIAlertController alertControllerWithTitle:nil
+                                                                message:prompt
+                                                         preferredStyle:UIAlertControllerStyleAlert];
+    [a addTextFieldWithConfigurationHandler:^(UITextField *tf) { tf.text = defaultText; }];
+    [a addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel
+                                        handler:^(UIAlertAction *_){ completionHandler(nil); }]];
+    [a addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault
+                                        handler:^(UIAlertAction *_){ completionHandler(a.textFields.firstObject.text); }]];
+    [self presentViewController:a animated:YES completion:nil];
 }
 
 @end

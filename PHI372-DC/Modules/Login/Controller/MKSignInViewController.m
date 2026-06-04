@@ -19,6 +19,9 @@
 #import "MKAppConfigModel.h"
 #import "MKWebViewViewController.h"
 #import "MKDeviceTool.h"
+#import "MKEventTrackingService.h"
+#import <AppTrackingTransparency/AppTrackingTransparency.h>
+#import <AdSupport/AdSupport.h>
 #import <SVProgressHUD/SVProgressHUD.h>
 
 @interface MKSignInViewController ()
@@ -37,6 +40,11 @@
     [super viewDidLoad];
     [self setupViews];
     [self bindActions];
+    // 延迟 1s 请 ATT, 避免与 KeyboardManager / 系统弹窗叠加
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        [self requestIDFAPermission];
+    });
 }
 
 - (void)setupViews {
@@ -54,10 +62,12 @@
     self.cardView.onGetOTPTapped = ^{ [wself requestOTP]; };
     self.cardView.onSignInTapped = ^{ [wself doSignIn]; };
     self.cardView.onPrivacyPolicyTapped = ^{
+        [MKEventTrackingService recordEventWithCode:@"2"];
         [wself openAgreementURLProvider:^NSString *(MKAppConfigModel *cfg) { return cfg.policyHref; }
                                   title:@"Privacy Policy"];
     };
     self.cardView.onServiceAgreementTapped = ^{
+        [MKEventTrackingService recordEventWithCode:@"3"];
         [wself openAgreementURLProvider:^NSString *(MKAppConfigModel *cfg) { return cfg.agreementHref; }
                                   title:@"Service Agreement"];
     };
@@ -107,6 +117,8 @@
     [[MKNetworkManager sharedManager] post:@"/app/v3/sms/sendVerifySms"
                                     params:body
                                    success:^(id resp) {
+        // 发码接口回返 → 埋 4 (PHI259 一致, 不论 resultCode 是否 200)
+        [MKEventTrackingService recordEventWithCode:@"4"];
         if (![resp isKindOfClass:[NSDictionary class]]) {
             [SVProgressHUD showErrorWithStatus:@"Bad response"];
             return;
@@ -127,6 +139,8 @@
 #pragma mark - API: 登录
 
 - (void)doSignIn {
+    // 登录前埋 5
+    [MKEventTrackingService recordEventWithCode:@"5"];
     NSString *phone = self.cardView.mobile ?: @"";
     NSString *otp = self.cardView.otp ?: @"";
 
@@ -196,6 +210,34 @@
     } failure:^(NSError *error) {
         NSLog(@"[registerDevice] failed: %@", error.localizedDescription);
     }];
+}
+
+#pragma mark - IDFA / ATT (iOS 14+ 跟踪权限)
+
+- (void)requestIDFAPermission {
+    if (@available(iOS 14, *)) {
+        ATTrackingManagerAuthorizationStatus status = [ATTrackingManager trackingAuthorizationStatus];
+        if (status == ATTrackingManagerAuthorizationStatusNotDetermined) {
+            [ATTrackingManager requestTrackingAuthorizationWithCompletionHandler:^(ATTrackingManagerAuthorizationStatus s) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self trackIDFAResult:s];
+                });
+            }];
+        } else {
+            [self trackIDFAResult:status];
+        }
+    }
+}
+
+- (void)trackIDFAResult:(ATTrackingManagerAuthorizationStatus)status API_AVAILABLE(ios(14)) {
+    if (status == ATTrackingManagerAuthorizationStatusAuthorized) {
+        NSString *idfa = [[[ASIdentifierManager sharedManager] advertisingIdentifier] UUIDString];
+        NSLog(@"[ATT] authorized, IDFA=%@", idfa);
+        [MKEventTrackingService recordEventWithCode:@"17"];
+    } else {
+        NSLog(@"[ATT] denied/restricted, status=%ld", (long)status);
+        [MKEventTrackingService recordEventWithCode:@"18"];
+    }
 }
 
 - (void)enterHome {
