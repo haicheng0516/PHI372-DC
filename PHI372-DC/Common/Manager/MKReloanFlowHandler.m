@@ -7,6 +7,7 @@
 #import "MKNetworkManager.h"
 #import "MKProductTermModel.h"
 #import "MKProductStateResponse.h"
+#import "MKEventTrackingService.h"
 #import "NSString+MKAmount.h"
 #import <SVProgressHUD/SVProgressHUD.h>
 #import "MKRejectFlowCoordinator.h"
@@ -104,17 +105,20 @@
     sheet.onConfirmTapped = ^{
         __strong typeof(weakSelf) strongSelf = weakSelf;
         if (!strongSelf) return;
+        [MKEventTrackingService recordEventWithCode:@"71"];
         // 复借弹窗保持在界面上, 等系统定位权限弹窗出现时再 dismiss
         [strongSelf startSeamlessOrderWithProductId:productId selectedAmount:loanAmount];
     };
     sheet.onCancelTapped = ^{
         __strong typeof(weakSelf) strongSelf = weakSelf;
         if (!strongSelf) return;
+        [MKEventTrackingService recordEventWithCode:@"72"];
         strongSelf.currentReloanAlert = nil;
         if ([strongSelf.delegate respondsToSelector:@selector(reloanFlowHandlerDidDismiss:)]) {
             [strongSelf.delegate reloanFlowHandlerDidDismiss:strongSelf];
         }
     };
+    [MKEventTrackingService recordEventWithCode:@"70"];
     [sheet show];
 }
 

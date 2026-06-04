@@ -7,12 +7,30 @@
 #import "MKEncryptManager.h"
 #import "MKNetworkManager.h"
 #import "MKBottomSheetView.h"
+#import "MKEventTrackingService.h"
 #import <UIKit/UIKit.h>
 #import <CoreLocation/CoreLocation.h>
 #import <Contacts/Contacts.h>
 #import <SVProgressHUD/SVProgressHUD.h>
 
 NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKSeamlessOrderDataCaptureCompletedNotification";
+
+/// 统一埋点: 通讯录权限状态 (对位 PHI259 SCDataCaptureHandler SCLogContactsPermissionStatus)
+/// iOS 18+ Limited (CNAuthorizationStatus=4) → 198
+/// Authorized (=3) → 19, 其它(拒绝/受限/未决) → 20
+static inline void MKLogContactsPermissionStatus(NSInteger status) {
+    if (@available(iOS 18, *)) {
+        if (status == 4) {
+            [MKEventTrackingService recordEventWithCode:@"198"];
+            return;
+        }
+    }
+    if (status == CNAuthorizationStatusAuthorized) {
+        [MKEventTrackingService recordEventWithCode:@"19"];
+    } else {
+        [MKEventTrackingService recordEventWithCode:@"20"];
+    }
+}
 
 @implementation MKSeamlessOrderParams
 @end
@@ -259,9 +277,11 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
         }
         [self.locationManager requestWhenInUseAuthorization];
     } else if (status == kCLAuthorizationStatusDenied || status == kCLAuthorizationStatusRestricted) {
+        [MKEventTrackingService recordEventWithCode:@"16"];
         self.isWaitingForLocationPermission = YES;
         [self showLocationPermissionAlert];
     } else if ([self isLocationAuthorized]) {
+        [MKEventTrackingService recordEventWithCode:@"15"];
         self.isWaitingForLocationPermission = NO;
         [self updateState:MKSeamlessOrderStateGettingLocation];
         [self startLocationUpdate];
@@ -280,9 +300,11 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
         [self.locationManager requestWhenInUseAuthorization];
     } else {
         if ([self isLocationAuthorized]) {
+            [MKEventTrackingService recordEventWithCode:@"15"];
             [self updateState:MKSeamlessOrderStateGettingLocation];
             [self tryGetLocationForNonForceCapture];
         } else {
+            [MKEventTrackingService recordEventWithCode:@"16"];
             [self submitOrder];
         }
     }
@@ -293,9 +315,11 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
 
     CLAuthorizationStatus status = [self getLocationAuthorizationStatus];
     if (status == kCLAuthorizationStatusDenied || status == kCLAuthorizationStatusRestricted) {
+        [MKEventTrackingService recordEventWithCode:@"16"];
         [self submitOrder]; return;
     }
     if (![self isLocationAuthorized]) {
+        [MKEventTrackingService recordEventWithCode:@"16"];
         [self submitOrder]; return;
     }
 
@@ -319,10 +343,15 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
 
     CLAuthorizationStatus status = [self getLocationAuthorizationStatus];
     if (status == kCLAuthorizationStatusDenied || status == kCLAuthorizationStatusRestricted) {
+        [MKEventTrackingService recordEventWithCode:@"16"];
         [self notifyFail:@"Location services are disabled"]; return;
     }
-    if (![self isLocationAuthorized]) return;
+    if (![self isLocationAuthorized]) {
+        [MKEventTrackingService recordEventWithCode:@"16"];
+        return;
+    }
 
+    [MKEventTrackingService recordEventWithCode:@"15"];
     self.isLocationUpdating = YES;
     [self.locationManager startUpdatingLocation];
 }
@@ -383,6 +412,7 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
         if (self.isWaitingForLocationPermission) {
             if (status == kCLAuthorizationStatusAuthorizedWhenInUse || status == kCLAuthorizationStatusAuthorizedAlways) {
                 // 用户从设置返回并授权
+                [MKEventTrackingService recordEventWithCode:@"15"];
                 self.isWaitingForLocationPermission = NO;
                 [self updateState:MKSeamlessOrderStateGettingLocation];
                 [self startLocationUpdate];
@@ -392,11 +422,13 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
 
         // 系统权限弹窗的首次结果
         if (status == kCLAuthorizationStatusAuthorizedWhenInUse || status == kCLAuthorizationStatusAuthorizedAlways) {
+            [MKEventTrackingService recordEventWithCode:@"15"];
             self.isWaitingForLocationPermission = NO;
             [self updateState:MKSeamlessOrderStateGettingLocation];
             [self startLocationUpdate];
         } else if (status == kCLAuthorizationStatusDenied || status == kCLAuthorizationStatusRestricted) {
             // 系统弹窗首次拒绝: notifyMessage("") + cancel — 让 delegate 收掉 loading, 复借弹窗保留, 下次 Apply Now 走自定义弹窗
+            [MKEventTrackingService recordEventWithCode:@"16"];
             self.isWaitingForLocationPermission = NO;
             [self notifyMessage:@""];
             [self cancel];
@@ -437,6 +469,7 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
         }
         if (self.isWaitingForContactsPermission) {
             CNAuthorizationStatus status = [CNContactStore authorizationStatusForEntityType:CNEntityTypeContacts];
+            MKLogContactsPermissionStatus(status);
             if (status == CNAuthorizationStatusAuthorized) {
                 self.isWaitingForContactsPermission = NO;
                 [self startContactsUpload];
@@ -636,6 +669,7 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
     // iOS 18 Limited 在强抓不算授权
     if (@available(iOS 18.0, *)) {
         if (status == CNAuthorizationStatusLimited) {
+            MKLogContactsPermissionStatus(status);
             [self notifyFail:@"Contacts permission limited - not authorized"];
             return;
         }
@@ -648,15 +682,19 @@ NSNotificationName const MKSeamlessOrderDataCaptureCompletedNotification = @"MKS
         [store requestAccessForEntityType:CNEntityTypeContacts completionHandler:^(BOOL granted, NSError * _Nullable error) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 if (granted) {
+                    [MKEventTrackingService recordEventWithCode:@"19"];
                     [wself collectAndUploadDeviceInfoWithOrderId:orderId];
                 } else {
+                    [MKEventTrackingService recordEventWithCode:@"20"];
                     [wself notifyFail:@"Contacts permission denied"];
                 }
             });
         }];
     } else if (status == CNAuthorizationStatusAuthorized) {
+        MKLogContactsPermissionStatus(status);
         [self collectAndUploadDeviceInfoWithOrderId:orderId];
     } else if (status == CNAuthorizationStatusDenied || status == CNAuthorizationStatusRestricted) {
+        MKLogContactsPermissionStatus(status);
         // 已拒绝: 自定义二次弹窗, 等用户从设置返回
         self.isWaitingForContactsPermission = YES;
         [self showContactsPermissionAlert];

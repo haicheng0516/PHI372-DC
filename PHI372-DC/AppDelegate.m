@@ -5,6 +5,9 @@
 #import "AppDelegate.h"
 #import <SVProgressHUD/SVProgressHUD.h>
 #import "MKPushBootstrap.h"
+#import "MKEventTrackingService.h"
+
+static NSString * const kMKHasTrackedFirstOpenKey = @"MK.HasTrackedFirstOpen";
 
 @implementation AppDelegate
 
@@ -15,6 +18,17 @@
 
     // 推送(Firebase + UNUserNotificationCenter delegate)
     [[MKPushBootstrap sharedInstance] setup];
+
+    // 埋点: 首次打开 App (一次性)
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    if (![defaults boolForKey:kMKHasTrackedFirstOpenKey]) {
+        [MKEventTrackingService recordEventWithCode:@"0"];
+        [defaults setBool:YES forKey:kMKHasTrackedFirstOpenKey];
+        [defaults synchronize];
+    }
+    // 埋点: 每次启动 App
+    [MKEventTrackingService recordEventWithCode:@"1"];
+
     return YES;
 }
 

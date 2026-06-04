@@ -41,6 +41,7 @@
 #import <SVProgressHUD/SVProgressHUD.h>
 #import <StoreKit/StoreKit.h>
 #import <Masonry/Masonry.h>
+#import "MKEventTrackingService.h"
 
 static BOOL sHasShownUpdateAlertThisLaunch = NO;
 static BOOL sHasShownReloanTipThisLaunch = NO;
@@ -423,6 +424,8 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
 - (void)applyTapped {
     if (self.isRequestingKYCStatus) return;
     self.isRequestingKYCStatus = YES;
+    // 埋点: KYC 入口点击 (对位 PHI259 didTapOpenProductSection 的 code 7)
+    [MKEventTrackingService recordEventWithCode:@"7"];
     [SVProgressHUD showWithStatus:@"Loading..."];
     NSDictionary *body = [[MKEncryptManager sharedManager] generateRequestBody:@{}];
     __weak typeof(self) wself = self;
@@ -635,15 +638,18 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
     sheet.onConfirmTapped = ^{
         __strong typeof(wself) sself = wself;
         if (!sself) return;
+        [MKEventTrackingService recordEventWithCode:@"71"];
         [SVProgressHUD show];
         [sself.reloanHandler startSeamlessOrderWithProductId:capturedProductId selectedAmount:capturedAmount];
     };
     sheet.onCancelTapped = ^{
         __strong typeof(wself) sself = wself;
         if (!sself) return;
+        [MKEventTrackingService recordEventWithCode:@"72"];
         sself.currentReloanSheet = nil;
         [sself flushPendingAlertsIfNeeded];
     };
+    [MKEventTrackingService recordEventWithCode:@"70"];
     [sheet show];
 }
 
@@ -809,6 +815,7 @@ static BOOL sHasShownReloanTipThisLaunch = NO;
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    [MKEventTrackingService recordEventWithCode:@"7"];
     if (indexPath.section == 0) {
         [self handleNoticeTap];
         return;
