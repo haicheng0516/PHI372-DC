@@ -32,6 +32,8 @@
 @property (nonatomic, assign) BOOL isDefaultAccount;
 /// Pencil: default row UI
 @property (nonatomic, strong) UIView *defaultAccountRow;
+/// 编辑模式: account_type 预填后触发 bank 列表加载, 列表回来时此 flag 为 YES → 再次预填 bank_name
+@property (nonatomic, assign) BOOL pendingBankNamePrefill;
 @end
 
 @implementation MKKYCBankCardEditViewController
@@ -245,17 +247,28 @@
 
 - (void)applyPrefillIfNeeded {
     if (self.prefillValues.count == 0) return;
+    NSString *accountTypeMatchedKey = nil;
     for (MKKYCItemModel *item in self.formItems) {
+        // /payAccountItemList 的 itemCode 是 snake_case (account_type),
+        // /payAccountInfo/list 详情返回是 camelCase (accountType) — 先直查再 snake→camel 兜底
         NSString *value = self.prefillValues[item.itemCode];
+        if (value.length == 0) {
+            value = self.prefillValues[[self mk_snakeToCamel:item.itemCode]];
+        }
         if (value.length == 0) continue;
         if ([item isPickerType]) {
-            // value 可能是 buttonKey 或 buttonLabel — 先尝试 key 匹配
+            // value 可能是 buttonKey 或 buttonLabel — 大小写忽略匹配
+            NSString *valueLower = value.lowercaseString;
             for (NSInteger i = 0; i < (NSInteger)item.buttonList.count; i++) {
                 MKKYCButtonModel *btn = item.buttonList[i];
-                if ([btn.buttonKey isEqualToString:value] || [btn.buttonLabel isEqualToString:value]) {
+                if ([btn.buttonKey.lowercaseString isEqualToString:valueLower] ||
+                    [btn.buttonLabel.lowercaseString isEqualToString:valueLower]) {
                     item.selectedIndex = i;
                     item.selectedKey = btn.buttonKey;
                     item.selectedValue = btn.buttonLabel;
+                    if ([self isAccountTypeCode:item.itemCode]) {
+                        accountTypeMatchedKey = btn.buttonKey;
+                    }
                     break;
                 }
             }
@@ -263,6 +276,11 @@
             item.selectedValue = value;
             item.selectedKey = value;
         }
+    }
+    // account_type 已预填 → 触发对应 bank/wallet 列表加载, 列表回来再预填 bank_name
+    if (accountTypeMatchedKey.length > 0) {
+        self.pendingBankNamePrefill = YES;
+        [self loadBankNameOptionsForType:accountTypeMatchedKey];
     }
 }
 
@@ -410,15 +428,38 @@
     if (buttons.count == 0) return;
     for (NSInteger i = 0; i < (NSInteger)self.formItems.count; i++) {
         MKKYCItemModel *it = self.formItems[i];
-        if ([self isBankNameCode:it.itemCode]) {
-            it.buttonList = buttons;
-            it.selectedKey = @"";
-            it.selectedValue = @"";
-            it.selectedIndex = -1;
-            [self.tableView reloadRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:i inSection:0]]
-                                  withRowAnimation:UITableViewRowAnimationNone];
-            break;
+        if (![self isBankNameCode:it.itemCode]) continue;
+        it.buttonList = buttons;
+
+        // 编辑模式: 列表回来后尝试用 prefillValues 选中原 bank
+        NSString *matchedKey = @"";
+        NSString *matchedLabel = @"";
+        NSInteger matchedIdx = -1;
+        if (self.pendingBankNamePrefill) {
+            self.pendingBankNamePrefill = NO;
+            NSString *want = self.prefillValues[it.itemCode];
+            if (want.length == 0) want = self.prefillValues[[self mk_snakeToCamel:it.itemCode]];
+            if (want.length == 0) want = self.prefillValues[@"bankName"];
+            if (want.length > 0) {
+                NSString *wantLower = want.lowercaseString;
+                for (NSInteger j = 0; j < (NSInteger)buttons.count; j++) {
+                    MKKYCButtonModel *b = buttons[j];
+                    if ([b.buttonKey.lowercaseString isEqualToString:wantLower] ||
+                        [b.buttonLabel.lowercaseString isEqualToString:wantLower]) {
+                        matchedKey = b.buttonKey;
+                        matchedLabel = b.buttonLabel;
+                        matchedIdx = j;
+                        break;
+                    }
+                }
+            }
         }
+        it.selectedKey = matchedKey;
+        it.selectedValue = matchedLabel;
+        it.selectedIndex = matchedIdx;
+        [self.tableView reloadRowsAtIndexPaths:@[[NSIndexPath indexPathForRow:i inSection:0]]
+                              withRowAnimation:UITableViewRowAnimationNone];
+        break;
     }
 }
 
@@ -459,6 +500,20 @@
             item.selectedKey = self.userName;
         }
     }
+}
+
+/// snake_case → camelCase. 用于 itemCode (account_type) 匹配 详情返回的 camelCase key (accountType)
+- (NSString *)mk_snakeToCamel:(NSString *)snake {
+    if (snake.length == 0 || [snake rangeOfString:@"_"].location == NSNotFound) return snake;
+    NSArray<NSString *> *parts = [snake componentsSeparatedByString:@"_"];
+    NSMutableString *out = [NSMutableString stringWithString:parts.firstObject ?: @""];
+    for (NSUInteger i = 1; i < parts.count; i++) {
+        NSString *p = parts[i];
+        if (p.length == 0) continue;
+        [out appendString:[[p substringToIndex:1] uppercaseString]];
+        if (p.length > 1) [out appendString:[p substringFromIndex:1]];
+    }
+    return [out copy];
 }
 
 - (BOOL)isUserNameItemCode:(NSString *)itemCode {

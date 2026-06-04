@@ -153,10 +153,14 @@
     NSString *recordIdStr = card.recordId > 0
         ? [NSString stringWithFormat:@"%ld", (long)card.recordId]
         : (card.bankCardBindId > 0 ? [NSString stringWithFormat:@"%ld", (long)card.bankCardBindId] : @"");
-    NSDictionary *body = [[MKEncryptManager sharedManager] generateRequestBody:@{
+    // 签名只用公参, 业务字段走 requestData (与 KYC BankCardEdit /update + /save 一致)
+    // 否则后端按"签名不含业务字段"校验, sign 不匹配 → 返回签名失败
+    NSDictionary *dataForRequest = @{
         @"recordId": recordIdStr,
         @"defaultFlag": @"1"
-    }];
+    };
+    NSDictionary *body = [[MKEncryptManager sharedManager]
+                          generateRequestBodyWithSignData:@{} requestData:dataForRequest];
     [SVProgressHUD show];
     __weak typeof(self) wself = self;
     [[MKNetworkManager sharedManager] post:@"/app/v3/payAccountInfo/update"
