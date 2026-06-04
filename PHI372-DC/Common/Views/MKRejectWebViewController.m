@@ -12,6 +12,7 @@
 #import "MKEventTrackingService.h"
 #import "MKConstants.h"
 #import <Masonry/Masonry.h>
+#import <SVProgressHUD/SVProgressHUD.h>
 
 /// H5 ScriptMessage 名。H5 联调时需确认与前端约定值一致(占位 native)。
 static NSString * const kRejectScriptMessageName = @"native";
@@ -65,6 +66,27 @@ static NSString * const kRejectScriptMessageName = @"native";
 }
 
 #pragma mark - WKNavigationDelegate
+
+// 拦截非 http(s) scheme (tel: / mailto: / whatsapp: / gcash: 等), 交给系统打开
+- (void)webView:(WKWebView *)webView
+decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction
+decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler {
+    NSURL *url = navigationAction.request.URL;
+    if (!url) { decisionHandler(WKNavigationActionPolicyCancel); return; }
+    NSString *scheme = url.scheme.lowercaseString;
+    if ([scheme isEqualToString:@"http"] || [scheme isEqualToString:@"https"] || [scheme isEqualToString:@"about"]) {
+        decisionHandler(WKNavigationActionPolicyAllow);
+        return;
+    }
+    [[UIApplication sharedApplication] openURL:url options:@{} completionHandler:^(BOOL success) {
+        if (!success) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [SVProgressHUD showErrorWithStatus:@"Please install the app first"];
+            });
+        }
+    }];
+    decisionHandler(WKNavigationActionPolicyCancel);
+}
 
 - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
     if (webView != self.rejectWebView) return;

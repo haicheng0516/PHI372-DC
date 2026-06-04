@@ -3,6 +3,7 @@
 //
 
 #import "MKLoginManager.h"
+#import "MKAppConfigManager.h"
 
 NSNotificationName const MKLoginStateDidChangeNotification = @"MKLoginStateDidChangeNotification";
 
@@ -60,6 +61,8 @@ static NSString * const kMKKeyKYCDone    = @"MK.kycCompleted";
     [d removeObjectForKey:kMKKeyUserId];
     [d removeObjectForKey:kMKKeyKYCDone];
     [d synchronize];
+    // 清 App 全局配置, 避免旧用户的 policyHref/rejectH5 等残留到下个用户
+    [[MKAppConfigManager sharedManager] clearAppConfig];
     NSLog(@"[Login] cleared");
     [[NSNotificationCenter defaultCenter] postNotificationName:MKLoginStateDidChangeNotification
                                                         object:nil

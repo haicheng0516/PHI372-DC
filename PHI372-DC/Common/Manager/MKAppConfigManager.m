@@ -36,4 +36,8 @@
         if (completion) completion(nil);
     }];
 }
+
+- (void)clearAppConfig {
+    self.currentAppConfig = nil;
+}
 @end

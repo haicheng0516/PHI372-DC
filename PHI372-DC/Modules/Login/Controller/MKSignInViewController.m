@@ -18,6 +18,7 @@
 #import "MKAppConfigManager.h"
 #import "MKAppConfigModel.h"
 #import "MKWebViewViewController.h"
+#import "MKDeviceTool.h"
 #import <SVProgressHUD/SVProgressHUD.h>
 
 @interface MKSignInViewController ()
@@ -164,6 +165,8 @@
         [[MKLoginManager sharedManager] loginWithUserId:r.data.userId
                                                   token:r.data.token
                                                  mobile:normalized];
+        // 登录成功后上报设备指纹(风控/反欺诈), 不阻塞跳首页, 失败仅 log
+        [self registerDevice];
         [SVProgressHUD showSuccessWithStatus:@"Welcome"];
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.6 * NSEC_PER_SEC)),
                        dispatch_get_main_queue(), ^{
@@ -171,6 +174,27 @@
         });
     } failure:^(NSError *error) {
         [SVProgressHUD showErrorWithStatus:@"Network error"];
+    }];
+}
+
+#pragma mark - 设备注册 (登录后上报指纹, 风控)
+
+- (void)registerDevice {
+    NSDictionary *deviceInfo = [MKDeviceTool collectDeviceInfoWithOrderId:@""];
+    if (deviceInfo.count == 0) {
+        NSLog(@"[registerDevice] device info empty, skip");
+        return;
+    }
+    // 入参不参与签名: dataForSign 为空, dataForRequest 携带设备字段
+    NSDictionary *body = [[MKEncryptManager sharedManager] generateRequestBodyWithSignData:@{}
+                                                                                requestData:deviceInfo];
+    [[MKNetworkManager sharedManager] post:@"/app/v3/mobile/registerDevice"
+                                    params:body
+                                   success:^(id resp) {
+        NSInteger code = [resp[@"resultCode"] integerValue];
+        NSLog(@"[registerDevice] resultCode=%ld msg=%@", (long)code, resp[@"resultMsg"]);
+    } failure:^(NSError *error) {
+        NSLog(@"[registerDevice] failed: %@", error.localizedDescription);
     }];
 }
 

@@ -16,6 +16,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)loadConfig;
 /// 拉取配置,完成回调返回最新配置(失败回调 nil)
 - (void)loadConfigWithCompletion:(void (^_Nullable)(MKAppConfigModel *_Nullable config))completion;
+/// 清空当前配置(登出时调用,避免旧用户的 policyHref/rejectH5 等残留)
+- (void)clearAppConfig;
 @end
 
 NS_ASSUME_NONNULL_END
